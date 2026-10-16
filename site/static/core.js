@@ -178,7 +178,8 @@ export function describePeople(codes) {
 }
 
 export function dataThrough(meta) {
-  return `Police reports through ${monthYear(meta.data_through)}`;
+  const y = +meta.data_through.slice(0, 4);
+  return `Police reports through ${monthYear(meta.data_through)}. ${y + 1} will be added once its reports are in, in spring ${y + 2}`;
 }
 
 export function gapNote(meta, y0, y1) {
