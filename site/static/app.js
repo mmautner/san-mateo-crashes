@@ -264,7 +264,7 @@ function setupIntersection(data, page) {
     const kinds = new Set([...bikes, ...near].filter((x) => x.facility).map((x) => bikeway(x.facility)));
     for (const k of kinds) if (BIKE_GLOSSARY[k]) parts.push(`<p class="cx-meta">${BIKE_GLOSSARY[k]}</p>`);
     parts.push(`<p class="cx-meta">${esc(plan.method)} From the city's <a href="${esc(plan.url)}">${esc(plan.title)}</a>, adopted ${C.monthYear(plan.adopted)}.</p>`);
-    return { summary, open: here > 0, label: plan.label || plan.title, year, body: parts.join("") };
+    return { summary, label: plan.label || plan.title, year, body: parts.join("") };
   }
 
   function renderPlan(ctx) {
@@ -273,7 +273,7 @@ function setupIntersection(data, page) {
     const blocks = [...data.plans.plans.values()].map((plan) => planBlock(plan, ctx[plan.id])).filter(Boolean);
     box.innerHTML = `<h2>What the city has planned</h2>
       <p class="cx-meta">City plans that name this intersection or places within ${esc(radiusWordsFor(current.miles))}. Tap a plan to see what it says.</p>
-      ${blocks.map((b) => `<details class="cx-plan-block"${b.open ? " open" : ""}>
+      ${blocks.map((b) => `<details class="cx-plan-block">
         <summary><span class="cx-plan-name">${esc(b.label)} <span class="cx-plan-year">${b.year}</span></span>
         <span class="cx-plan-sum">${esc(b.summary)}</span></summary>
         <div class="cx-plan-body">${b.body}</div></details>`).join("")}
