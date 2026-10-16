@@ -328,28 +328,43 @@ export function preparePlans(plans) {
 
 const ON_SEGMENT_M = 40;
 
-// What city plans say about this intersection and its surroundings.
+// What each city plan says about this intersection and its surroundings, keyed by plan id.
 export function planContext(plans, int, miles) {
   if (!plans) return null;
   const r = miles * M_PER_MILE;
-  const own = plans.points.filter((p) => p.id === int.id);
-  const onSegments = plans.segments.filter((s) => distToLine(int.px, int.py, s.xy) <= ON_SEGMENT_M);
-  const nearPoints = plans.points.filter((p) => p.id !== int.id && Math.hypot(p.px - int.px, p.py - int.py) <= r);
-  const nearSegments = plans.segments.filter((s) => !onSegments.includes(s) && distToLine(int.px, int.py, s.xy) <= r);
-  const byRank = (a, b) => (a.plan < b.plan ? -1 : a.plan > b.plan ? 1 : a.rank - b.rank);
-  return { own, onSegments, nearPoints: nearPoints.sort(byRank), nearSegments: nearSegments.sort(byRank) };
+  const byRank = (a, b) => (a.rank ?? 0) - (b.rank ?? 0) || Math.hypot(a.px - int.px, a.py - int.py) - Math.hypot(b.px - int.px, b.py - int.py);
+  const out = {};
+  for (const id of plans.plans.keys()) {
+    const pts = plans.points.filter((p) => p.plan === id), segs = plans.segments.filter((s) => s.plan === id);
+    const own = pts.filter((p) => p.id === int.id);
+    const onSegments = segs.filter((s) => distToLine(int.px, int.py, s.xy) <= ON_SEGMENT_M);
+    out[id] = {
+      own, onSegments,
+      nearPoints: pts.filter((p) => p.id !== int.id && Math.hypot(p.px - int.px, p.py - int.py) <= r).sort(byRank),
+      nearSegments: segs.filter((s) => !onSegments.includes(s) && distToLine(int.px, int.py, s.xy) <= r).sort(byRank),
+    };
+  }
+  return out;
 }
 
-// One factual sentence for the council email.
+// Factual sentences for the council email: the ranked safety plan always, other plans when they name this spot.
 export function planSentence(plans, ctx, s) {
   if (!ctx) return "";
-  const lrsp = plans.plans.get("lrsp");
-  const nInts = plans.points.filter((p) => p.plan === "lrsp").length;
-  const own = ctx.own.find((p) => p.plan === "lrsp");
-  if (own) return `The city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title} lists this intersection as #${own.rank} of ${nInts} priority intersections.`;
-  const seg = ctx.onSegments.find((x) => x.plan === "lrsp");
-  if (seg) return `The city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title} lists ${seg.name} as a priority street segment.`;
-  const near = ctx.nearPoints.filter((p) => p.plan === "lrsp").length + ctx.nearSegments.filter((x) => x.plan === "lrsp").length;
-  if (near) return `The city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title} lists ${near} priority ${near === 1 ? "location" : "locations"} within ${radiusWords(s.miles)} of this intersection, but not this intersection itself.`;
-  return `This intersection is not among the ${nInts} priority intersections in the city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title}.`;
+  const out = [];
+  for (const plan of plans.plans.values()) {
+    const c = ctx[plan.id], year = plan.adopted.slice(0, 4);
+    const nInts = plans.points.filter((p) => p.plan === plan.id).length;
+    if (plan.unranked) {
+      if (c.own.length) out.push(`The city's ${year} ${plan.title} recommends changes at this intersection.`);
+      else if (c.onSegments.length) out.push(`The city's ${year} ${plan.title} recommends changes on ${c.onSegments[0].name}.`);
+      continue;
+    }
+    const own = c.own[0], seg = c.onSegments[0];
+    const near = c.nearPoints.length + c.nearSegments.length;
+    if (own) out.push(`The city's ${year} ${plan.title} lists this intersection as #${own.rank} of ${nInts} priority intersections.`);
+    else if (seg) out.push(`The city's ${year} ${plan.title} lists ${seg.name} as a priority street segment.`);
+    else if (near) out.push(`The city's ${year} ${plan.title} lists ${near} priority ${near === 1 ? "location" : "locations"} within ${radiusWords(s.miles)} of this intersection, but not this intersection itself.`);
+    else out.push(`This intersection is not among the ${nInts} priority intersections in the city's ${year} ${plan.title}.`);
+  }
+  return out.join(" ");
 }

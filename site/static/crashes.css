@@ -179,3 +179,5 @@ header nav a { font-size: 16px; color: var(--text-2); text-decoration: none; }
 .cx-proposals li { margin: 2px 0; }
 .cx-plan .cx-rank li a { color: var(--text); }
 .cx-plan .cx-ask { color: var(--text); }
+.cx-plan-block { padding: 4px 0 6px; border-top: 1px solid var(--hairline); margin-top: 10px; }
+.cx-plan-block:first-of-type { border-top: 0; margin-top: 0; }

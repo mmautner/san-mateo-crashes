@@ -34,6 +34,7 @@ def clusters(hits):
     return [(sum(p["x"] for p in g) / len(g), sum(p["y"] for p in g) / len(g)) for _, g in groups]
 
 
+NEAR_CITY = B.city_polygon().buffer(300)
 CLOSEST_APPROACH_M = 50  # streets that meet through turn lanes share no node
 
 
@@ -58,6 +59,9 @@ def locate_corner(idx, a, b, pick=None, where="", max_gap=CLOSEST_APPROACH_M, ma
     if pick:
         axis = 0 if pick in ("east", "west") else 1
         return (max if pick in ("east", "north") else min)(places, key=lambda p: p[axis])
+    if len(places) > 1:  # same names elsewhere (5th Ave & El Camino Real in Belmont): keep San Mateo's
+        inside = [p for p in places if NEAR_CITY.contains(Point(*p))]
+        places = inside or places
     if len(places) > 1 and not many:
         sys.exit(f"{where}: {a} & {b} matches {len(places)} places; add \"pick\"")
     return places if many else places[0]
@@ -109,25 +113,39 @@ def main():
     for path in sorted(PLANS.glob("*.json")):
         plan = json.loads(path.read_text())
         pid = plan["id"]
-        out["plans"].append({k: plan[k] for k in ("id", "title", "short", "adopted", "url", "pdf", "method") if k in plan})
+        out["plans"].append({k: plan[k] for k in ("id", "title", "short", "adopted", "url", "pdf", "method", "unranked") if k in plan})
+        # hand-entered plans must match exactly; generated ones (unranked lists) report misses and go on
+        strict = not plan.get("unranked")
         out["projects"][pid] = plan.get("projects", {})
         for loc in plan.get("intersections", []):
-            where = f"{path.name} #{loc['rank']} {loc['name']}"
-            x, y = locate_corner(idx, *loc["streets"], pick=loc.get("pick"), where=where,
-                                 max_gap=loc.get("max_gap_m", CLOSEST_APPROACH_M))
+            where = f"{path.name} #{loc.get('rank', loc.get('project'))} {loc['name']}"
+            try:
+                x, y = locate_corner(idx, *loc["streets"], pick=loc.get("pick"), where=where,
+                                     max_gap=loc.get("max_gap_m", CLOSEST_APPROACH_M))
+            except SystemExit as e:
+                if strict:
+                    raise
+                print(f"  SKIPPED {e}")
+                continue
             # attach to a page only when that page names the same two streets
             want = {B.street_key(n) for s in loc["streets"] for n in s.split("|")}
             same = [(sid, math.dist((x, y), p)) for sid, p, keys in site_pts if len(keys & want) == 2]
             site_id, d = min(same, key=lambda t: t[1]) if same else (None, math.inf)
             lon, lat = B.unproject(x, y)
             out["intersections"].append({
-                "plan": pid, **{k: loc[k] for k in ("rank", "tier", "name", "project", "status", "project_url") if k in loc},
+                "plan": pid, **{k: v for k, v in loc.items() if k not in ("streets", "pick", "max_gap_m") and not k.startswith("_")},
                 "id": site_id if d < SAME_PLACE_M else None, "lon": round(lon, 6), "lat": round(lat, 6)})
             print(f"  {where} -> {site_id if d < SAME_PLACE_M else '(no page)'} ({d:.0f} m)")
         for seg in plan.get("segments", []):
-            where = f"{path.name} segment #{seg['rank']} {seg['name']}"
-            line = segment_line(idx, seg, where)
-            out["segments"].append({"plan": pid, **{k: seg[k] for k in ("rank", "name", "project") if k in seg}, "line": line})
+            where = f"{path.name} segment #{seg.get('rank', seg.get('project'))} {seg['name']}"
+            try:
+                line = segment_line(idx, seg, where)
+            except SystemExit as e:
+                if strict:
+                    raise
+                print(f"  SKIPPED {e}")
+                continue
+            out["segments"].append({"plan": pid, **{k: v for k, v in seg.items() if k not in ("street", "from", "to") and not k.startswith("_")}, "line": line})
             print(f"  {where} -> {len(line)} points")
     OUT.write_text(json.dumps(out, separators=(",", ":"), ensure_ascii=False))
     print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")

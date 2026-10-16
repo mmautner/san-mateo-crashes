@@ -152,50 +152,68 @@ function setupIntersection(data, page) {
       <p class="cx-meta">Causes and fault are the officer's judgment at the scene, not a court finding.</p>`;
   }
 
-  function projectHtml(planId, n) {
-    const pr = data.plans.projects[planId]?.[String(n)];
+  const listHtml = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  function proposalsHtml(plan, e) {
+    // ranked plans keep proposals in a shared projects table; generated ones carry them inline
+    const pr = e.sooner ? e : data.plans.projects[plan.id]?.[String(e.project)];
     if (!pr) return "";
-    const list = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
-    const covers = [...data.plans.points, ...data.plans.segments].filter((x) => x.plan === planId && x.project === n).map((x) => x.name);
+    const covers = e.sooner ? [] : [...data.plans.points, ...data.plans.segments]
+      .filter((x) => x.plan === plan.id && x.project === e.project).map((x) => x.name);
+    const source = e.sooner
+      ? `<a href="${esc(plan.pdf)}#page=${e.page}">The plan's project list, page ${e.page}</a>, has the full wording.`
+      : `Summarized from the plan, page ${pr.page}.`;
     return `<div class="cx-proposals">`
       + (covers.length > 1 ? `<p class="cx-meta">The plan proposes one project covering ${esc(covers.join("; "))}.</p>` : "")
-      + (pr.sooner.length ? `<h4>Proposed sooner (lower cost)</h4>${list(pr.sooner)}` : "")
-      + (pr.later.length ? `<h4>Proposed later (higher cost)</h4>${list(pr.later)}` : "")
+      + (pr.sooner.length ? `<h4>${e.sooner ? "Short term" : "Proposed sooner (lower cost)"}</h4>${listHtml(pr.sooner)}` : "")
+      + (pr.later.length ? `<h4>${e.sooner ? "Medium term" : "Proposed later (higher cost)"}</h4>${listHtml(pr.later)}` : "")
+      + (pr.other?.length ? `<h4>Recommended</h4>${listHtml(pr.other)}` : "")
       + (pr.underway ? `<p class="cx-meta">Already underway when the plan was adopted: ${esc(pr.underway)}.</p>` : "")
-      + `<p class="cx-meta">Summarized from the plan, page ${pr.page}.</p></div>`;
+      + `<p class="cx-meta">${source}</p></div>`;
+  }
+  function planBlock(plan, c) {
+    const year = plan.adopted.slice(0, 4);
+    const link = `<a href="${esc(plan.url)}">${esc(plan.title)}</a>`;
+    const nInts = data.plans.points.filter((p) => p.plan === plan.id).length;
+    const nSegs = data.plans.segments.filter((x) => x.plan === plan.id).length;
+    const parts = [];
+    for (const p of c.own) {
+      parts.push(plan.unranked
+        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes at this intersection</strong> (project ${esc(p.project)}).</p>`
+        : `<p class="cx-plan-lead"><strong>This intersection is #${p.rank} of ${nInts} priority intersections</strong> in the city's ${year} ${link} (Tier ${p.tier}).</p>`);
+      if (p.status) parts.push(`<p>Status: ${esc(p.status.text)}, according to the <a href="${esc(p.status.source)}">city's Transportation Safety page</a> (checked ${C.longDate(p.status.checked)}).</p>`);
+      if (p.project_url) parts.push(`<p><a href="${esc(p.project_url)}">The city's project page</a> has the current status.</p>`);
+      parts.push(proposalsHtml(plan, p));
+    }
+    for (const g of c.onSegments) {
+      parts.push(plan.unranked
+        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes on ${esc(g.name)}</strong> (project ${esc(g.project)}).</p>`
+        : `<p class="cx-plan-lead"><strong>${esc(g.name)}</strong> is #${g.rank} of ${nSegs} priority street segments in the city's ${year} ${link}.</p>`);
+      parts.push(proposalsHtml(plan, g));
+    }
+    const within = esc(radiusWordsFor(current.miles));
+    const named = (p) => (p.id ? `<a href="${BASE}${esc(p.id)}/">${esc(p.name)}</a>` : esc(p.name));
+    if (plan.unranked) {
+      const near = [...c.nearPoints, ...c.nearSegments];
+      if (near.length) {
+        const shown = near.slice(0, 5).map(named).join("; ");
+        parts.push(`<p>${c.own.length || c.onSegments.length ? "It also recommends" : `The city's ${year} ${link} recommends`} changes at ${near.length} ${near.length === 1 ? "location" : "locations"} within ${within}: ${shown}${near.length > 5 ? `, and ${near.length - 5} more` : ""}.</p>`);
+      }
+      if (!parts.length) return "";
+    } else {
+      const near = [...c.nearPoints.map((p) => `<li>#${p.rank} ${named(p)} <span class="cx-count">intersection, Tier ${p.tier}</span></li>`),
+        ...c.nearSegments.map((g) => `<li>#${g.rank} ${esc(g.name)} <span class="cx-count">street segment</span></li>`)];
+      if (near.length) parts.push(`<p>${c.own.length || c.onSegments.length ? "Also within" : "Within"} ${within}, the plan lists:</p><ul class="cx-rank">${near.join("")}</ul>`);
+      if (!parts.length) parts.push(`<p>The city's ${year} ${link} doesn't list this intersection among its ${nInts} priority intersections or ${nSegs} priority street segments, and none are within ${within}.</p>`);
+    }
+    parts.push(`<p class="cx-meta">${esc(plan.method)}</p>`);
+    return `<div class="cx-plan-block">${parts.join("")}</div>`;
   }
   function renderPlan(ctx) {
     const box = $("#cx-plan");
     if (!ctx) { box.hidden = true; return; }
-    const lrsp = data.plans.plans.get("lrsp");
-    const year = lrsp.adopted.slice(0, 4);
-    const nInts = data.plans.points.filter((p) => p.plan === "lrsp").length;
-    const nSegs = data.plans.segments.filter((x) => x.plan === "lrsp").length;
-    const planLink = `<a href="${esc(lrsp.url)}">${esc(lrsp.title)}</a>`;
-    const parts = [];
-    for (const p of ctx.own) {
-      parts.push(`<p class="cx-plan-lead"><strong>This intersection is #${p.rank} of ${nInts} priority intersections</strong> in the city's ${year} ${planLink} (Tier ${p.tier}).</p>`);
-      if (p.status) parts.push(`<p>Status: ${esc(p.status.text)}, according to the <a href="${esc(p.status.source)}">city's Transportation Safety page</a> (checked ${C.longDate(p.status.checked)}).</p>`);
-      if (p.project_url) parts.push(`<p><a href="${esc(p.project_url)}">The city's project page</a> has the current status.</p>`);
-      if (p.project) parts.push(projectHtml(p.plan, p.project));
-    }
-    for (const g of ctx.onSegments) {
-      parts.push(`<p class="cx-plan-lead"><strong>${esc(g.name)}</strong> is #${g.rank} of ${nSegs} priority street segments in the city's ${year} ${planLink}.</p>`);
-      if (g.project) parts.push(projectHtml(g.plan, g.project));
-    }
-    const near = [...ctx.nearPoints.map((p) => {
-      const name = p.id ? `<a href="${BASE}${esc(p.id)}/">${esc(p.name)}</a>` : esc(p.name);
-      return `<li>#${p.rank} ${name} <span class="cx-count">intersection, Tier ${p.tier}</span></li>`;
-    }), ...ctx.nearSegments.map((g) => `<li>#${g.rank} ${esc(g.name)} <span class="cx-count">street segment</span></li>`)];
-    if (near.length) {
-      parts.push(`<p>${ctx.own.length || ctx.onSegments.length ? "Also within" : "Within"} ${esc(radiusWordsFor(current.miles))}, the plan lists:</p><ul class="cx-rank">${near.join("")}</ul>`);
-    }
-    if (!parts.length) {
-      parts.push(`<p>The city's ${year} ${planLink} doesn't list this intersection among its ${nInts} priority intersections or ${nSegs} priority street segments, and none are within ${esc(radiusWordsFor(current.miles))}.</p>`);
-    }
-    parts.push(`<p class="cx-meta">${esc(lrsp.method)}</p>`);
-    parts.push(`<p class="cx-ask">Ask the city about this corner: <a href="${CFG.service}">report a concern</a> or <a href="${CFG.calming}">request a traffic calming study</a>.</p>`);
-    box.innerHTML = `<h2>What the city has planned</h2>${parts.join("")}`;
+    const blocks = [...data.plans.plans.values()].map((plan) => planBlock(plan, ctx[plan.id])).filter(Boolean);
+    blocks.push(`<p class="cx-ask">Ask the city about this corner: <a href="${CFG.service}">report a concern</a> or <a href="${CFG.calming}">request a traffic calming study</a>.</p>`);
+    box.innerHTML = `<h2>What the city has planned</h2>${blocks.join("")}`;
     box.hidden = false;
   }
 
