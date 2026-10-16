@@ -17,6 +17,7 @@ from shapely.geometry import LineString, Point
 import build as B
 
 PLANS = B.HERE.parent / "site" / "plans"
+KINDS = PLANS / "kinds.json"  # what each recommended change takes; not a plan
 OUT = B.HERE.parent / "site" / "data" / "plans.json"
 PLAN_ORDER = ["lrsp", "tod", "bmp", "ped"]  # safety plan first; then by how specific each plan is
 SAME_PLACE_M = 120    # nodes for one named corner (divided roads, offset T's)
@@ -141,6 +142,19 @@ def segment_line(idx, seg, where, siblings=()):
     return [[round(c, 5) for c in B.unproject(x, y)] for x, y in line.coords]
 
 
+def kinds_used(out):
+    """{recommended change: quick | build | other} for every change the plans name; stops on one not in kinds.json."""
+    table = {t: k for k, ts in json.loads(KINDS.read_text()).items() if not k.startswith("_") for t in ts}
+    items = {x["facility"] for x in out["segments"] if x.get("facility")}
+    for src in [*out["intersections"], *out["segments"], *(p for pr in out["projects"].values() for p in pr.values())]:
+        for k in ("sooner", "later", "other"):
+            items.update(src.get(k) or [])
+    missing = sorted(items - table.keys())
+    if missing:
+        sys.exit("kinds.json doesn't say what these take:\n  " + "\n  ".join(missing))
+    return {t: table[t] for t in sorted(items)}
+
+
 def main():
     ints = B.intersections()
     idx = B.intersection_index(ints)
@@ -149,7 +163,7 @@ def main():
 
     out = {"plans": [], "intersections": [], "segments": [], "projects": {}}
     order = {pid: k for k, pid in enumerate(PLAN_ORDER)}
-    for path in sorted(PLANS.glob("*.json"), key=lambda p: (order.get(p.stem, 99), p.stem)):
+    for path in sorted((p for p in PLANS.glob("*.json") if p != KINDS), key=lambda p: (order.get(p.stem, 99), p.stem)):
         plan = json.loads(path.read_text())
         pid = plan["id"]
         out["plans"].append({k: plan[k] for k in ("id", "label", "title", "short", "adopted", "url", "pdf", "method", "unranked", "list_label") if k in plan})
@@ -195,6 +209,7 @@ def main():
                 continue
             out["segments"].append({"plan": pid, **{k: v for k, v in seg.items() if k not in ("street", "from", "to", "optional") and not k.startswith("_")}, "line": line})
             print(f"  {where} -> {len(line)} points")
+    out["kinds"] = kinds_used(out)
     OUT.write_text(json.dumps(out, separators=(",", ":"), ensure_ascii=False))
     print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
 

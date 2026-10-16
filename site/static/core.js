@@ -346,6 +346,7 @@ export function preparePlans(plans) {
   return {
     plans: new Map(plans.plans.map((p) => [p.id, p])),
     projects: plans.projects,
+    kinds: plans.kinds || {},
     points: plans.intersections.map((p) => { const [px, py] = toXY(p.lon, p.lat); return { ...p, px, py }; }),
     segments: plans.segments.map((s) => ({ ...s, xy: s.line.map(([lon, lat]) => toXY(lon, lat)) })),
   };
@@ -394,6 +395,51 @@ export function planSentence(plans, ctx, s) {
     else out.push(`This intersection is not among the ${nInts} priority intersections in the city's ${year} ${plan.title}.`);
   }
   return out.join(" ");
+}
+
+// The changes the plans recommend at this intersection (or on a plan's street segment through it),
+// sorted by what they take: quick (signal timing, signs or paint), build, or other (studies, enforcement).
+// Each: {text, kind, plans: [plan labels]}. A bikeway reads "A bike lane on 3rd Ave from ...".
+export function planItems(plans, ctx) {
+  const out = { quick: [], build: [], other: [] }, seen = new Map();
+  if (!ctx) return out;
+  const add = (text, key, plan) => {
+    const kind = plans.kinds?.[key];
+    if (!kind) return;
+    const who = `${plan.label}, ${plan.adopted.slice(0, 4)}`;
+    if (seen.has(text)) { const it = seen.get(text); if (!it.plans.includes(who)) it.plans.push(who); return; }
+    const it = { text, kind, plans: [who] };
+    seen.set(text, it);
+    out[kind].push(it);
+  };
+  for (const plan of plans.plans.values()) {
+    const c = ctx[plan.id];
+    for (const e of [...c.own, ...c.onSegments]) {
+      if (e.facility) {
+        const f = e.facility.replace(/ \(.*\)$/, "");
+        add(`${f.charAt(0).toUpperCase()}${f.slice(1)} on ${e.name}`, e.facility, plan);
+        continue;
+      }
+      const src = e.sooner || e.other ? e : plans.projects[plan.id]?.[String(e.project)];
+      for (const t of [...(src?.sooner || []), ...(src?.later || []), ...(src?.other || [])]) add(t, t, plan);
+    }
+  }
+  return out;
+}
+
+// "a, b and c"
+export function andList(xs) {
+  return xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+}
+
+const lowerWord = (t) => (/^(A |[A-Z][a-z])/.test(t) ? lower(t) : t); // "B St ..." stays
+
+// Email sentence: the changes the plans recommend here that don't need construction.
+export function actionSentences(items) {
+  if (!items.quick.length) return "";
+  const xs = items.quick.map((x) => lowerWord(x.text));
+  const shown = xs.length > 4 ? [...xs.slice(0, 3), `${xs.length - 3} more`] : xs;
+  return `The city's plans recommend changes here that don't need construction: ${andList(shown)}.`;
 }
 
 // People hurt near a point in each year, for the by-year chart.

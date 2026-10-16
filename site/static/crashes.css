@@ -248,3 +248,14 @@ header nav a { font-size: 16px; color: var(--text-2); text-decoration: none; }
 .cx-key-circle { background: transparent; border: 1.5px dashed var(--accent); width: 14px; height: 14px; }
 .cx-years-key { display: flex; align-items: center; gap: 6px; }
 .cx-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); flex: none; }
+.cx-takes { margin: 0 0 18px; }
+.cx-takes h3, .cx-plans-head { font: 600 17px var(--font-sans); color: var(--text); margin: 16px 0 6px; }
+.cx-takes h4 { font: 600 12px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 14px 0 2px; }
+.cx-takes h4 + .cx-meta { margin: 0 0 4px; }
+.cx-takes .cx-near-meta strong { color: var(--text-2); font-weight: 600; }
+.cx-takes-more { border-top: 1px solid var(--hairline); }
+.cx-takes-more > summary { cursor: pointer; padding: 10px 0; font-size: 14.5px; color: var(--text-2); }
+.cx-takes-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cx-takes-more[open] > summary { color: var(--text); }
+.cx-takes > .cx-meta:last-child { margin-top: 10px; }
+.cx-plan .cx-plan-intro { color: var(--text); font-size: 16px; margin: 0 0 6px; }

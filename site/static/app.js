@@ -129,8 +129,9 @@ function setupIntersection(data, page) {
     let planLine = "";
     try {
       const ctx = C.planContext(data.plans, int, s.miles);
-      renderPlan(ctx);
-      planLine = C.planSentence(data.plans, ctx, s);
+      const items = C.planItems(data.plans, ctx);
+      renderPlan(ctx, items);
+      planLine = [C.planSentence(data.plans, ctx, s), C.actionSentences(items)].filter(Boolean).join(" ");
     } catch (err) {
       console.error(err);
       $("#cx-plan").hidden = true;
@@ -294,12 +295,41 @@ function setupIntersection(data, page) {
     return { summary, label: plan.label || plan.title, year, body: parts.join("") };
   }
 
-  function renderPlan(ctx) {
+  // the plans' changes for this spot, grouped by what they take
+  const TAKES = [
+    ["quick", "No construction needed", "Changes to signal timing, signs or paint."],
+    ["build", "Needs construction", "These need a construction project or new equipment, and money for it, often from grants."],
+    ["other", "Studies and enforcement", ""],
+  ];
+  const FOLD_OVER = 8; // with more items than this, the construction and study lists start folded
+  function takesHtml(items) {
+    const n = items.quick.length + items.build.length + items.other.length;
+    if (!n) return `<p>None of the plans recommend a change at this intersection itself.</p>`;
+    const list = (k) => `<ul class="cx-near">${items[k].map((x) => `<li>${esc(x.text)}<span class="cx-near-meta">${esc(C.andList(x.plans))}</span></li>`).join("")}</ul>`;
+    const fold = items.quick.length && n > FOLD_OVER;
+    return `<div class="cx-takes"><h3>Changes the plans recommend here</h3>`
+      + TAKES.filter(([k]) => items[k].length).map(([k, head, note]) => fold && k !== "quick"
+        ? `<details class="cx-takes-more"><summary>${head} (${items[k].length})</summary>${note ? `<p class="cx-meta">${note}</p>` : ""}${list(k)}</details>`
+        : `<h4>${head}</h4>${note ? `<p class="cx-meta">${note}</p>` : ""}${list(k)}`).join("")
+      + `<p class="cx-meta">The plans don't track what has been done since they were adopted, so some of these may already be in place.</p></div>`;
+  }
+
+  // "a road safety plan, a bicycle plan, ..." with each linked to the city's page for it
+  const PLAN_NOUN = { lrsp: "a road safety plan", bmp: "a bicycle plan", ped: "a pedestrian plan", tod: "a plan for walking to Caltrain stations" };
+  function planLinks() {
+    const ps = ["lrsp", "bmp", "ped", "tod"].map((id) => data.plans.plans.get(id)).filter(Boolean);
+    return C.andList(ps.map((p) => { const [a, ...rest] = PLAN_NOUN[p.id].split(" "); return `${a} <a href="${esc(p.url)}">${esc(rest.join(" "))}</a>`; }));
+  }
+
+  function renderPlan(ctx, items) {
     const box = $("#cx-plan");
     if (!ctx) { box.hidden = true; return; }
     const blocks = [...data.plans.plans.values()].map((plan) => planBlock(plan, ctx[plan.id])).filter(Boolean);
     box.innerHTML = `<h2>What the city has planned</h2>
-      <p class="cx-meta">City plans that name this intersection or places within ${esc(radiusWordsFor(current.miles))}. Tap a plan to see what it says.</p>
+      <p class="cx-plan-intro">The City Council has adopted plans that recommend specific changes at streets and corners across San Mateo: ${planLinks()}. A plan isn't a schedule or a budget, and a change can wait years for money. But a change recommended in an adopted plan is one the city has already put in writing for that place, which is worth pointing to when you ask for it.</p>
+      ${takesHtml(items)}
+      <h3 class="cx-plans-head">What each plan says</h3>
+      <p class="cx-meta">Including places within ${esc(radiusWordsFor(current.miles))}. Tap a plan to see what it says.</p>
       ${blocks.map((b) => `<details class="cx-plan-block">
         <summary><span class="cx-plan-name">${esc(b.label)} <span class="cx-plan-year">${b.year}</span></span>
         <span class="cx-plan-sum">${esc(b.summary)}</span></summary>
