@@ -279,8 +279,7 @@ function setupIntersection(data, page) {
       ${blocks.map((b) => `<details class="cx-plan-block">
         <summary><span class="cx-plan-name">${esc(b.label)} <span class="cx-plan-year">${b.year}</span></span>
         <span class="cx-plan-sum">${esc(b.summary)}</span></summary>
-        <div class="cx-plan-body">${b.body}</div></details>`).join("")}
-      <p class="cx-ask">Ask the city about this corner: <a href="${CFG.service}">report a concern</a> or <a href="${CFG.calming}">request a traffic calming study</a>.</p>`;
+        <div class="cx-plan-body">${b.body}</div></details>`).join("")}`;
     box.hidden = false;
   }
 
@@ -375,7 +374,8 @@ function setupIntersection(data, page) {
     const formal = m.salutation;
     const body = `Dear ${formal},\n\n${current.text}${current.sentence ? ` ${current.sentence}` : ""}${current.plan ? ` ${current.plan}` : ""}\n\n${location.href}\n\n\n\nWhat is the city planning for this intersection?\n`;
     const href = `mailto:${m.email}?subject=${encodeURIComponent(`Crashes near ${int.label}`)}&body=${encodeURIComponent(body)}`;
-    box.innerHTML = `<p>${esc(int.label)} is in City Council District ${int.district}, represented by ${esc(m.title)} ${esc(m.name)}.</p>`
+    box.innerHTML = `<h3>Email your council member</h3>`
+      + `<p>${esc(int.label)} is in City Council District ${int.district}, represented by ${esc(m.title)} ${esc(m.name)}. The email starts with this page's numbers and a question; add a sentence of your own.</p>`
       + `<a class="cx-btn cx-btn-primary" href="${esc(href)}">Email ${esc(formal)}</a>`;
     box.hidden = false;
   }

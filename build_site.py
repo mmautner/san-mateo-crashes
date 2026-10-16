@@ -132,7 +132,7 @@ def intersection_page(id_, p, meta):
     title = f"Crashes near {p['label']}, San Mateo"
     return head(title, p["headline"], path, og_image=f"{BASE}og/{id_}.png") + f"""
 <article class="cx cx-intersection" data-id="{e(id_)}">
-  <span class="cx-eyebrow"><a href="{BASE}">San Mateo crash lookup</a></span>
+  <span class="cx-eyebrow"><a href="{BASE}">San Mateo crash lookup</a> · <a href="{BASE}#cx-q">Look up another intersection</a></span>
   <h1>{e(p['label'])}</h1>
   <p class="cx-headline" id="cx-headline" aria-live="polite">{e(p['headline'])}</p>
   <p class="cx-at" id="cx-at">{e(p['at'])}</p>
@@ -144,9 +144,6 @@ def intersection_page(id_, p, meta):
     <label>Distance<select id="cx-radius"></select></label>
     <label>From<select id="cx-from"></select></label>
     <label>Through<select id="cx-to"></select></label>
-  </div>
-  <div class="cx-actions">
-    <button type="button" class="cx-btn" id="cx-share">Copy link</button>
   </div>
 
   <div class="cx-map" id="cx-map" role="img" aria-label="Map of the crashes listed below"></div>
@@ -163,7 +160,19 @@ def intersection_page(id_, p, meta):
 
   <section class="cx-plan" id="cx-plan" hidden></section>
 
-  <div class="cx-council" id="cx-council" hidden></div>
+  <section class="cx-act">
+    <h2>What you can do</h2>
+    <div class="cx-act-item">
+      <h3>Tell a neighbor</h3>
+      <p>The link shows this corner's numbers in a text or group chat.</p>
+      <button type="button" class="cx-btn" id="cx-share">Copy link</button>
+    </div>
+    <div class="cx-act-item" id="cx-council" hidden></div>
+    <div class="cx-act-item">
+      <h3>Ask the city to look at this corner</h3>
+      <p><a href="{e(CFG['city_service_request'])}">Report a concern</a> to the city, or <a href="{e(CFG['city_traffic_calming'])}">request a traffic calming study</a> for your street.</p>
+    </div>
+  </section>
 
   <h2>Crashes</h2>
   <div class="cx-filters" id="cx-filters" role="group" aria-label="Show crashes where someone was"></div>
