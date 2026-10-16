@@ -65,3 +65,61 @@ The script only writes under `s3://maxmautner.com/san-mateo-crashes/`. It never 
 pipeline/.venv/bin/python build_site.py --dev   # --dev also copies the blog's compiled CSS for local use
 cd dist && python3 -m http.server 8765          # http://127.0.0.1:8765/san-mateo-crashes/
 ```
+
+## Adapting to another city, or more than one (not built yet)
+
+The crash data (CCRS) already covers every police department in California. The counting and wording in `core.js` aren't specific to San Mateo. What doesn't carry over by itself is the local work that makes the numbers defensible: finding reporting gaps, council contacts, and the city's plans. This section is the plan for making a second city cheap, written in October 2026 after auditing the code.
+
+### What is specific to San Mateo today
+
+A fork for another city would currently have to edit about a dozen places:
+
+| Where | What's hard-coded |
+|---|---|
+| `pipeline/fetch.py` | Map box around the city (`BOX`), neighboring city names (`NEARBY_CITIES`), `City Name == "San Mateo"`, the County of San Mateo GIS boundary layer and feature, the city's council-district map URL |
+| `pipeline/build.py` | Freeway rule (`FREEWAY_RE`) knows only US-101, SR-92 and I-280 |
+| `pipeline/export.py` | `GAPS` (the San Mateo Police Aug 2021 – Jul 2022 gap), `FIRST_YEAR`, `DEFAULT_FIRST_YEAR` |
+| `pipeline/report.py` | Assumes San Mateo Police (NCIC 4116), its four neighbors, and an OTS comparison figure |
+| `pipeline/plans.py` | Freeway names in `OPEN_END`; plan order `PLAN_ORDER` |
+| `site/static/core.js` | "San Mateo intersections" in the comparison line; `LAT0` (latitude used for distances) |
+| `site/static/app.js` | "No San Mateo intersection matches", "You don't seem to be in San Mateo", the plans intro listing four specific plans |
+| `build_site.py` | Titles, front page, and a methodology page that is mostly San Mateo prose (freeways, neighbors, each plan's description) |
+| `site/og/make_og.py` | "SAN MATEO CRASH LOOKUP" drawn into the images |
+| Styling | Pages use maxmautner.com's `/assets/css/site.css` and header; a fork gets unstyled pages |
+| `site/council.json`, `site/plans/` | Assume district elections and these four plans |
+
+### The plan
+
+1. **One `city.json`** holding everything city-specific: name, URL path, contact address, the city's service-request and traffic-calming links, freeways to leave out, known reporting gaps (each with its reason), default first year, example corners. Derive the rest: the map box and neighboring cities come from the boundary plus the half-mile band, and `LAT0` from the boundary's center. All wording reads the city name from the config.
+2. **Statewide default sources**, so no county-specific GIS hunting:
+   - Boundary: Census TIGER "places", found by city name (incorporated cities).
+   - Streets: OpenStreetMap through Overpass, queried from the boundary's box (as now).
+   - Council districts: optional (a GeoJSON URL or file). Without one, the email card addresses the whole council, which fits the many cities that elect at-large.
+3. **A gap finder.** `report.py` prints reports per police department and month for every agency inside the boundary and band, and flags months that drop toward zero. That's how the San Mateo gap shows up. A forker must review it and write any gaps into `city.json` before deploying. This is the step that protects credibility; `FORKING.md` should say so plainly.
+4. **Optional parts stay optional.** No `site/plans/` files means no plans section and no plan sentence in the email. Plan JSON files keep their current format, and `kinds.json` still has to sort every recommendation.
+5. **A plain built-in stylesheet** (light and dark), used unless `city.json` names an external one. This deploy keeps using the blog's stylesheet and header.
+6. **Deploy anywhere static.** Keep `deploy.sh` for S3 and CloudFront, and document GitHub Pages as the no-AWS option: build, then publish `dist/`.
+7. **`FORKING.md`:** clone, edit `city.json`, run fetch → export → report, review the gap report, optionally add plans (with page citations, conservative wording, and every item sorted in `kinds.json`), build, deploy. Link `DECISIONS.md` for why the defaults are what they are.
+8. **Prove it with a second city.** Build one end to end without touching anything but its config. Foster City is a good candidate: it's next door and has a single police department. Anything that has to be fixed by hand goes into the code or the guide. Then rebuild San Mateo and confirm the output is unchanged.
+
+### Scaling past one city
+
+At county scale (San Mateo County: about 20 cities, perhaps 20,000 intersections) nothing needs redesigning if each city is its own folder:
+
+- **Page data:** one `crashes.json` and `intersections.json` per city (today 235 KB and 114 KB). A page only ever loads its own city's files.
+- **Preview images:** about a minute per 1,400 images, so a county takes roughly 15 minutes. `deploy.sh` already uploads only changed files.
+- **Comparison line:** keep it within each city. A statewide percentile would mostly compare cities with farmland.
+
+Statewide (roughly 400,000–600,000 intersection pages, ~15–20 GB built) would need real changes:
+
+- Preview images rendered on demand or one per city, not per intersection.
+- A manifest instead of listing every S3 object on deploy.
+- Search indexes split by city or by first letter.
+
+The bigger limits are human, not technical:
+
+- Reporting gaps must be reviewed agency by agency.
+- There's no statewide list of council districts or members' emails.
+- City plans have no common format. Road safety plans are nearly universal, because state safety grants require them, but each is a different PDF.
+
+A statewide version should start as counts, map and list only, and only once the gap finder exists.
