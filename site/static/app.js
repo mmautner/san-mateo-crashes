@@ -93,7 +93,7 @@ function setupIntersection(data, page) {
 
   // controls
   const rSel = $("#cx-radius"), y0Sel = $("#cx-from"), y1Sel = $("#cx-to");
-  rSel.innerHTML = C.RADII.map((r) => `<option value="${r.miles}">${r.short}</option>`).join("");
+  rSel.innerHTML = C.RADII.map((r) => `<option value="${r.miles}">${r.short} · ${r.menu}</option>`).join("");
   const years = []; for (let y = meta.years[0]; y <= meta.years[1]; y++) years.push(y);
   y0Sel.innerHTML = y1Sel.innerHTML = years.map((y) => `<option>${y}</option>`).join("");
   const syncControls = () => { rSel.value = String(s.miles); y0Sel.value = String(s.y0); y1Sel.value = String(s.y1); };

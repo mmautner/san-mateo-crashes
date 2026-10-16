@@ -254,6 +254,9 @@ def methodology_page(meta):
   <p>Pages on or near a proposed bikeway also cite the city's <a href="https://www.cityofsanmateo.org/3944/Bicycle-Master-Plan-2020">Bicycle Master Plan</a> (adopted April 6, 2020), from its Appendix E project list: the street, its limits, the proposed kind of bikeway, and the plan's priority group (High, Medium-High, Medium-Low or Low, from a score for safety, comfort, equity and expected use). The site reads that table directly from the city's PDF. Where a bikeway ends at the city line or a freeway, the end is placed where the street meets it on the map. Projects on paths, overcrossings or parks that aren't streets on the map aren't placed on pages. Some of these bikeways may have been built since 2020. The extraction is <code>pipeline/plans_bmp.py</code>.</p>
   <p>Pages also cite the city's 2012 <a href="https://www.cityofsanmateo.org/2218/Pedestrian-Master-Plan">Pedestrian Master Plan</a> where its Appendix G names the location: corners recommended for wider sidewalk corners (Table G-4), stop lines set back from the crosswalk (Table G-6) or a pedestrian hybrid beacon (Table G-7), streets recommended for new sidewalks (Table G-1), and mid-block crosswalk upgrades (Table G-8). These were entered by hand from the plan, with page citations, in <code>site/plans/ped.json</code>. The plan's list of high-visibility crosswalk locations (its Appendix F) isn't included. Since the plan is from 2012, some of these changes may have been made.</p>
 
+  <h2>Distances</h2>
+  <p>Distances are straight-line distances from the point where the two streets meet. Walking times assume about 3 miles an hour: a quarter mile is about a 5-minute walk.</p>
+
   <h2>At the intersection</h2>
   <p>Each page also says how many of the people hurt nearby were hurt at the intersection itself: in crashes placed within 40 meters (about 130 feet) of where the two streets meet. The rest were on the streets around it.</p>
 

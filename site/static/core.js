@@ -1,10 +1,11 @@
 // Counting and wording. No DOM: used by the page and, under Node, by the build
 // to pre-render each intersection page at the default settings.
 
+// walk: at about 3 miles an hour
 export const RADII = [
-  { miles: 0.125, words: "an eighth of a mile", short: "⅛ mile" },
-  { miles: 0.25, words: "a quarter mile", short: "¼ mile" },
-  { miles: 0.5, words: "half a mile", short: "½ mile" },
+  { miles: 0.125, words: "an eighth of a mile", short: "⅛ mile", walk: "a 2- to 3-minute walk", menu: "2–3 min walk" },
+  { miles: 0.25, words: "a quarter mile", short: "¼ mile", walk: "about a 5-minute walk", menu: "5 min walk" },
+  { miles: 0.5, words: "half a mile", short: "½ mile", walk: "about a 10-minute walk", menu: "10 min walk" },
 ];
 export const DEFAULT_RADIUS = 0.25;
 const M_PER_MILE = 1609.344;
@@ -112,7 +113,8 @@ const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
 
 export function headline(label, t, s, lastYear) {
   const when = yearsPhrase(s.y0, s.y1, lastYear);
-  const where = `within ${radiusWords(s.miles)} of ${label}`;
+  const r = RADII.find((x) => x.miles === s.miles);
+  const where = `within ${radiusWords(s.miles)}${r ? ` (${r.walk})` : ""} of ${label}`;
   if (t.n === 0) return `${when}, police reported no one hurt in crashes ${where}.`;
   const parts = MODE_ORDER.filter((m) => t[m] > 0).map((m) => n(t[m], MODES[m].one, MODES[m].many));
   const people = t.n === 1 ? "1 person was hurt in a crash" : `${t.n} people were hurt in crashes`;
