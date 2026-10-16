@@ -37,9 +37,13 @@ Read `REPORT.md` before deploying. Check:
 - **Reporting gaps**: the agency table. If a police department has months with almost no reports, add them to `GAPS` in `pipeline/export.py`, and move `DEFAULT_FIRST_YEAR` if the gap falls in the default range.
 - **Newest year**: compare it with the two before it. Reports keep arriving for months; a low newest year may still be filling in.
 - **Council**: `site/council.json` (districts 1, 3 and 5 change after the November 2026 election).
-- **City plans**: `lrsp.json` and `ped.json` are entered by hand; `tod.json` and `bmp.json` are generated from the city's PDFs. When the city updates a plan or completes a project, edit the hand-entered file (or the extractor's alias tables) and rerun `pipeline/plans.py`.
+- **City plans**: `lrsp.json` and `ped.json` are entered by hand; `tod.json` and `bmp.json` are generated from the city's PDFs. When the city updates a plan or completes a project, edit the hand-entered file (or the extractor's alias tables) and rerun `pipeline/plans.py`. A new recommendation must be added to `site/plans/kinds.json` (what it takes: signal timing/signs/paint, construction, or studies/enforcement), or `plans.py` stops.
 
 The newest full year is picked up automatically (the current partial year is always left out).
+
+## Keeping it current
+
+`.github/workflows/freshness.yml` runs `pipeline/check_freshness.py` on the 1st of each month and keeps one open issue, "Site needs updating", when a new full year of crash data is out, a council term has ended (`term_ends` in `site/council.json`), or a linked plan or source no longer opens. It doesn't rebuild anything. Why things are the way they are is in `DECISIONS.md`.
 
 ## Deploy
 

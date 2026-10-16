@@ -1,0 +1,32 @@
+# Once a month, check whether the site needs a person's attention (new crash data,
+# council terms ended, broken links to city plans) and keep one open issue listing it.
+name: Freshness check
+on:
+  schedule:
+    - cron: "0 16 1 * *"   # 1st of each month
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - id: check
+        run: |
+          set +e
+          python pipeline/check_freshness.py > findings.txt
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat findings.txt
+      - if: steps.check.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Site needs updating"
+          { echo "The monthly check found:"; echo; sed 's/^/- /' findings.txt; } > body.md
+          n=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$n" ]; then gh issue comment "$n" --body-file body.md; else gh issue create --title "$title" --body-file body.md; fi
