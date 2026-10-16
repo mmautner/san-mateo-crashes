@@ -171,6 +171,7 @@ def main():
                   "(including where bike crashes had happened) and grouped them from High to Low priority. "
                   "Some may have been built since 2020.",
         "unranked": True,
+        "list_label": "The plan's project list",
         "intersections": [],
         "segments": out,
     }

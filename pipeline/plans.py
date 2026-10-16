@@ -152,17 +152,17 @@ def main():
     for path in sorted(PLANS.glob("*.json"), key=lambda p: (order.get(p.stem, 99), p.stem)):
         plan = json.loads(path.read_text())
         pid = plan["id"]
-        out["plans"].append({k: plan[k] for k in ("id", "title", "short", "adopted", "url", "pdf", "method", "unranked") if k in plan})
+        out["plans"].append({k: plan[k] for k in ("id", "title", "short", "adopted", "url", "pdf", "method", "unranked", "list_label") if k in plan})
         # hand-entered plans must match exactly; generated ones (unranked lists) report misses and go on
-        strict = not plan.get("unranked")
+        strict = plan.get("strict", not plan.get("unranked"))
         out["projects"][pid] = plan.get("projects", {})
         for loc in plan.get("intersections", []):
-            where = f"{path.name} #{loc.get('rank', loc.get('project'))} {loc['name']}"
+            where = f"{path.name} #{loc.get('rank') or loc.get('project') or '-'} {loc['name']}"
             try:
                 x, y = locate_corner(idx, *loc["streets"], pick=loc.get("pick"), where=where,
                                      max_gap=loc.get("max_gap_m", CLOSEST_APPROACH_M))
             except SystemExit as e:
-                if strict:
+                if strict and not loc.get("optional"):
                     raise
                 print(f"  SKIPPED {e}")
                 continue
@@ -172,7 +172,7 @@ def main():
             site_id, d = min(same, key=lambda t: t[1]) if same else (None, math.inf)
             lon, lat = B.unproject(x, y)
             out["intersections"].append({
-                "plan": pid, **{k: v for k, v in loc.items() if k not in ("streets", "pick", "max_gap_m") and not k.startswith("_")},
+                "plan": pid, **{k: v for k, v in loc.items() if k not in ("streets", "pick", "max_gap_m", "optional") and not k.startswith("_")},
                 "id": site_id if d < SAME_PLACE_M else None, "lon": round(lon, 6), "lat": round(lat, 6)})
             print(f"  {where} -> {site_id if d < SAME_PLACE_M else '(no page)'} ({d:.0f} m)")
         # far points of closed segments on each street, so open ends ("to City Limit") point the other way
@@ -185,15 +185,15 @@ def main():
                     continue
                 closed.setdefault(B.street_key(seg["street"]), []).append([p for e in ends for p in e])
         for seg in plan.get("segments", []):
-            where = f"{path.name} segment #{seg.get('rank', seg.get('project'))} {seg['name']}"
+            where = f"{path.name} segment #{seg.get('rank') or seg.get('project') or '-'} {seg['name']}"
             try:
                 line = segment_line(idx, seg, where, closed.get(B.street_key(seg["street"]), []))
             except SystemExit as e:
-                if strict:
+                if strict and not seg.get("optional"):
                     raise
                 print(f"  SKIPPED {e}")
                 continue
-            out["segments"].append({"plan": pid, **{k: v for k, v in seg.items() if k not in ("street", "from", "to") and not k.startswith("_")}, "line": line})
+            out["segments"].append({"plan": pid, **{k: v for k, v in seg.items() if k not in ("street", "from", "to", "optional") and not k.startswith("_")}, "line": line})
             print(f"  {where} -> {len(line)} points")
     OUT.write_text(json.dumps(out, separators=(",", ":"), ensure_ascii=False))
     print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")

@@ -155,17 +155,18 @@ function setupIntersection(data, page) {
   const listHtml = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
   function proposalsHtml(plan, e) {
     // ranked plans keep proposals in a shared projects table; generated ones carry them inline
-    const pr = e.sooner ? e : data.plans.projects[plan.id]?.[String(e.project)];
+    const inline = e.sooner || e.other;
+    const pr = inline ? { sooner: e.sooner || [], later: e.later || [], other: e.other || [] } : data.plans.projects[plan.id]?.[String(e.project)];
     if (!pr) return "";
-    const covers = e.sooner ? [] : [...data.plans.points, ...data.plans.segments]
+    const covers = inline ? [] : [...data.plans.points, ...data.plans.segments]
       .filter((x) => x.plan === plan.id && x.project === e.project).map((x) => x.name);
-    const source = e.sooner
-      ? `<a href="${esc(plan.pdf)}#page=${e.page}">The plan's project list, page ${e.page}</a>, has the full wording.`
+    const source = inline
+      ? `<a href="${esc(plan.pdf)}#page=${e.page}">${esc(plan.list_label || "The plan")}, page ${e.page}</a>, has the full wording.`
       : `Summarized from the plan, page ${pr.page}.`;
     return `<div class="cx-proposals">`
       + (covers.length > 1 ? `<p class="cx-meta">The plan proposes one project covering ${esc(covers.join("; "))}.</p>` : "")
-      + (pr.sooner.length ? `<h4>${e.sooner ? "Short term" : "Proposed sooner (lower cost)"}</h4>${listHtml(pr.sooner)}` : "")
-      + (pr.later.length ? `<h4>${e.sooner ? "Medium term" : "Proposed later (higher cost)"}</h4>${listHtml(pr.later)}` : "")
+      + (pr.sooner.length ? `<h4>${inline ? "Short term" : "Proposed sooner (lower cost)"}</h4>${listHtml(pr.sooner)}` : "")
+      + (pr.later.length ? `<h4>${inline ? "Medium term" : "Proposed later (higher cost)"}</h4>${listHtml(pr.later)}` : "")
       + (pr.other?.length ? `<h4>Recommended</h4>${listHtml(pr.other)}` : "")
       + (pr.underway ? `<p class="cx-meta">Already underway when the plan was adopted: ${esc(pr.underway)}.</p>` : "")
       + `<p class="cx-meta">${source}</p></div>`;
@@ -178,7 +179,7 @@ function setupIntersection(data, page) {
     const parts = [];
     for (const p of c.own) {
       parts.push(plan.unranked
-        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes at this intersection</strong> (project ${esc(p.project)}).</p>`
+        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes at this intersection</strong>${p.project ? ` (project ${esc(p.project)})` : ""}.</p>`
         : `<p class="cx-plan-lead"><strong>This intersection is #${p.rank} of ${nInts} priority intersections</strong> in the city's ${year} ${link} (Tier ${p.tier}).</p>`);
       if (p.status) parts.push(`<p>Status: ${esc(p.status.text)}, according to the <a href="${esc(p.status.source)}">city's Transportation Safety page</a> (checked ${C.longDate(p.status.checked)}).</p>`);
       if (p.project_url) parts.push(`<p><a href="${esc(p.project_url)}">The city's project page</a> has the current status.</p>`);
@@ -190,7 +191,7 @@ function setupIntersection(data, page) {
     }
     for (const g of c.onSegments.filter((x) => !x.facility)) {
       parts.push(plan.unranked
-        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes on ${esc(g.name)}</strong> (project ${esc(g.project)}).</p>`
+        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes on ${esc(g.name)}</strong>${g.project ? ` (project ${esc(g.project)})` : ""}.</p>`
         : `<p class="cx-plan-lead"><strong>${esc(g.name)}</strong> is #${g.rank} of ${nSegs} priority street segments in the city's ${year} ${link}.</p>`);
       parts.push(proposalsHtml(plan, g));
     }

@@ -8,6 +8,7 @@
  "pdf": "https://www.cityofsanmateo.org/DocumentCenter/View/89707",
  "method": "This plan recommends changes on walking routes near the Downtown, Hayward Park and Hillsdale Caltrain stations and along El Camino Real. It doesn't rank them. The changes listed here are grouped into plain categories; the plan's project list has the full wording.",
  "unranked": true,
+ "list_label": "The plan's project list",
  "intersections": [
   {
    "project": "DT-1",

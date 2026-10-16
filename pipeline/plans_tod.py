@@ -156,6 +156,7 @@ def main():
                   "Caltrain stations and along El Camino Real. It doesn't rank them. The changes listed here are "
                   "grouped into plain categories; the plan's project list has the full wording.",
         "unranked": True,
+        "list_label": "The plan's project list",
         "intersections": list(intersections.values()),
         "segments": list(segments.values()),
         "not_on_map": unplaced,
