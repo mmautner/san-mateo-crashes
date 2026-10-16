@@ -8,5 +8,7 @@
   "ccrs_url": "https://data.ca.gov/dataset/ccrs",
   "s3_bucket": "maxmautner.com",
   "cloudfront_distribution_id": "EXXGWO0M0CEXA",
-  "nhtsa_url": "https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813403"
+  "nhtsa_url": "https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813403",
+  "city_service_request": "https://www.cityofsanmateo.org/4940",
+  "city_traffic_calming": "https://cityofsanmateo.org/forms.aspx?fid=111"
 }

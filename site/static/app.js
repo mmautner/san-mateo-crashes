@@ -1,17 +1,22 @@
 import * as C from "./core.js";
 
-const BASE = document.documentElement.dataset.base; // "/crashes/"
+const BASE = document.documentElement.dataset.base; // "/san-mateo-crashes/"
+const CFG = { service: document.documentElement.dataset.cityService, calming: document.documentElement.dataset.cityCalming };
+const radiusWordsFor = (miles) => (C.RADII.find((r) => r.miles === miles) || { words: `${miles} mile` }).words;
 const $ = (s, el = document) => el.querySelector(s);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function loadData() {
   const v = document.documentElement.dataset.version || "";
-  const [crashes, ints] = await Promise.all([
+  const [crashes, ints, plans] = await Promise.all([
     fetch(`${BASE}data/crashes.json?v=${v}`).then((r) => r.json()),
     fetch(`${BASE}data/intersections.json?v=${v}`).then((r) => r.json()),
+    fetch(`${BASE}data/plans.json?v=${v}`).then((r) => r.json()).catch(() => null),
   ]);
-  return C.prepare(crashes, ints);
+  const data = C.prepare(crashes, ints);
+  data.plans = C.preparePlans(plans);
+  return data;
 }
 
 // ------------------------------------------------------------------ search
@@ -101,13 +106,14 @@ function setupIntersection(data, page) {
   };
   [rSel, y0Sel, y1Sel].forEach((el) => el.addEventListener("change", onChange));
 
-  let current = { text: "", near: [] };
+  let current = { text: "", near: [], miles: s.miles };
   const distCache = new Map();
   function update() {
     const near = C.nearby(data, int.px, int.py, s.miles, s.y0, s.y1);
     const t = C.tally(near);
     const key = `${s.miles}|${s.y0}|${s.y1}`;
     if (!distCache.has(key)) distCache.set(key, C.distribution(data, s.miles, s.y0, s.y1));
+    current.miles = s.miles;
     const text = C.headline(int.label, t, s, meta.years[1]);
     $("#cx-headline").textContent = text;
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
@@ -117,7 +123,9 @@ function setupIntersection(data, page) {
     const sentence = C.patternSentence(pat);
     $("#cx-pattern").textContent = sentence;
     renderPatterns(pat);
-    current = { text, near, sentence };
+    const ctx = C.planContext(data.plans, int, s.miles);
+    renderPlan(ctx);
+    current = { text, near, sentence, plan: C.planSentence(data.plans, ctx, s) };
     renderList(near);
     updateCouncil();
     map.update(near, s.miles);
@@ -142,6 +150,53 @@ function setupIntersection(data, page) {
       </div>
       <ul class="cx-facts">${facts.join("")}</ul>
       <p class="cx-meta">Causes and fault are the officer's judgment at the scene, not a court finding.</p>`;
+  }
+
+  function projectHtml(planId, n) {
+    const pr = data.plans.projects[planId]?.[String(n)];
+    if (!pr) return "";
+    const list = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+    const covers = [...data.plans.points, ...data.plans.segments].filter((x) => x.plan === planId && x.project === n).map((x) => x.name);
+    return `<div class="cx-proposals">`
+      + (covers.length > 1 ? `<p class="cx-meta">The plan proposes one project covering ${esc(covers.join("; "))}.</p>` : "")
+      + (pr.sooner.length ? `<h4>Proposed sooner (lower cost)</h4>${list(pr.sooner)}` : "")
+      + (pr.later.length ? `<h4>Proposed later (higher cost)</h4>${list(pr.later)}` : "")
+      + (pr.underway ? `<p class="cx-meta">Already underway when the plan was adopted: ${esc(pr.underway)}.</p>` : "")
+      + `<p class="cx-meta">Summarized from the plan, page ${pr.page}.</p></div>`;
+  }
+  function renderPlan(ctx) {
+    const box = $("#cx-plan");
+    if (!ctx) { box.hidden = true; return; }
+    const lrsp = data.plans.plans.get("lrsp");
+    const year = lrsp.adopted.slice(0, 4);
+    const nInts = data.plans.points.filter((p) => p.plan === "lrsp").length;
+    const nSegs = data.plans.segments.filter((x) => x.plan === "lrsp").length;
+    const planLink = `<a href="${esc(lrsp.url)}">${esc(lrsp.title)}</a>`;
+    const parts = [];
+    for (const p of ctx.own) {
+      parts.push(`<p class="cx-plan-lead"><strong>This intersection is #${p.rank} of ${nInts} priority intersections</strong> in the city's ${year} ${planLink} (Tier ${p.tier}).</p>`);
+      if (p.status) parts.push(`<p>Status: ${esc(p.status.text)}, according to the <a href="${esc(p.status.source)}">city's Transportation Safety page</a> (checked ${C.longDate(p.status.checked)}).</p>`);
+      if (p.project_url) parts.push(`<p><a href="${esc(p.project_url)}">The city's project page</a> has the current status.</p>`);
+      if (p.project) parts.push(projectHtml(p.plan, p.project));
+    }
+    for (const g of ctx.onSegments) {
+      parts.push(`<p class="cx-plan-lead"><strong>${esc(g.name)}</strong> is #${g.rank} of ${nSegs} priority street segments in the city's ${year} ${planLink}.</p>`);
+      if (g.project) parts.push(projectHtml(g.plan, g.project));
+    }
+    const near = [...ctx.nearPoints.map((p) => {
+      const name = p.id ? `<a href="${BASE}${esc(p.id)}/">${esc(p.name)}</a>` : esc(p.name);
+      return `<li>#${p.rank} ${name} <span class="cx-count">intersection, Tier ${p.tier}</span></li>`;
+    }), ...ctx.nearSegments.map((g) => `<li>#${g.rank} ${esc(g.name)} <span class="cx-count">street segment</span></li>`)];
+    if (near.length) {
+      parts.push(`<p>${ctx.own.length || ctx.onSegments.length ? "Also within" : "Within"} ${esc(radiusWordsFor(current.miles))}, the plan lists:</p><ul class="cx-rank">${near.join("")}</ul>`);
+    }
+    if (!parts.length) {
+      parts.push(`<p>The city's ${year} ${planLink} doesn't list this intersection among its ${nInts} priority intersections or ${nSegs} priority street segments, and none are within ${esc(radiusWordsFor(current.miles))}.</p>`);
+    }
+    parts.push(`<p class="cx-meta">${esc(lrsp.method)}</p>`);
+    parts.push(`<p class="cx-ask">Ask the city about this corner: <a href="${CFG.service}">report a concern</a> or <a href="${CFG.calming}">request a traffic calming study</a>.</p>`);
+    box.innerHTML = `<h2>What the city has planned</h2>${parts.join("")}`;
+    box.hidden = false;
   }
 
   // list
@@ -210,7 +265,7 @@ function setupIntersection(data, page) {
     const m = council.members[String(int.district)];
     if (!m) { box.hidden = true; return; }
     const formal = m.salutation;
-    const body = `Dear ${formal},\n\n${current.text}${current.sentence ? ` ${current.sentence}` : ""}\n\n${location.href}\n\n\n\nWhat is the city planning for this intersection?\n`;
+    const body = `Dear ${formal},\n\n${current.text}${current.sentence ? ` ${current.sentence}` : ""}${current.plan ? ` ${current.plan}` : ""}\n\n${location.href}\n\n\n\nWhat is the city planning for this intersection?\n`;
     const href = `mailto:${m.email}?subject=${encodeURIComponent(`Crashes near ${int.label}`)}&body=${encodeURIComponent(body)}`;
     box.innerHTML = `<p>${esc(int.label)} is in City Council District ${int.district}, represented by ${esc(m.title)} ${esc(m.name)}.</p>`
       + `<a class="cx-btn cx-btn-primary" href="${esc(href)}">Email ${esc(formal)}</a>`;

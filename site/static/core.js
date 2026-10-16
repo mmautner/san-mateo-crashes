@@ -302,3 +302,54 @@ export function noInjurySentence(k, s) {
   if (!k) return "";
   return `Police also took reports on ${k} ${k === 1 ? "crash" : "crashes"} within ${radiusWords(s.miles)} where no one was hurt. Nationally, about 60% of crashes like these are never reported to police.`;
 }
+
+// ------------------------------------------------------------------ city plans
+
+function distToLine(px, py, line) {
+  let best = Infinity;
+  for (let k = 0; k < line.length - 1; k++) {
+    const [ax, ay] = line[k], [bx, by] = line[k + 1];
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    const t = L2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0;
+    best = Math.min(best, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)));
+  }
+  return best;
+}
+
+export function preparePlans(plans) {
+  if (!plans) return null;
+  return {
+    plans: new Map(plans.plans.map((p) => [p.id, p])),
+    projects: plans.projects,
+    points: plans.intersections.map((p) => { const [px, py] = toXY(p.lon, p.lat); return { ...p, px, py }; }),
+    segments: plans.segments.map((s) => ({ ...s, xy: s.line.map(([lon, lat]) => toXY(lon, lat)) })),
+  };
+}
+
+const ON_SEGMENT_M = 40;
+
+// What city plans say about this intersection and its surroundings.
+export function planContext(plans, int, miles) {
+  if (!plans) return null;
+  const r = miles * M_PER_MILE;
+  const own = plans.points.filter((p) => p.id === int.id);
+  const onSegments = plans.segments.filter((s) => distToLine(int.px, int.py, s.xy) <= ON_SEGMENT_M);
+  const nearPoints = plans.points.filter((p) => p.id !== int.id && Math.hypot(p.px - int.px, p.py - int.py) <= r);
+  const nearSegments = plans.segments.filter((s) => !onSegments.includes(s) && distToLine(int.px, int.py, s.xy) <= r);
+  const byRank = (a, b) => (a.plan < b.plan ? -1 : a.plan > b.plan ? 1 : a.rank - b.rank);
+  return { own, onSegments, nearPoints: nearPoints.sort(byRank), nearSegments: nearSegments.sort(byRank) };
+}
+
+// One factual sentence for the council email.
+export function planSentence(plans, ctx, s) {
+  if (!ctx) return "";
+  const lrsp = plans.plans.get("lrsp");
+  const nInts = plans.points.filter((p) => p.plan === "lrsp").length;
+  const own = ctx.own.find((p) => p.plan === "lrsp");
+  if (own) return `The city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title} lists this intersection as #${own.rank} of ${nInts} priority intersections.`;
+  const seg = ctx.onSegments.find((x) => x.plan === "lrsp");
+  if (seg) return `The city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title} lists ${seg.name} as a priority street segment.`;
+  const near = ctx.nearPoints.filter((p) => p.plan === "lrsp").length + ctx.nearSegments.filter((x) => x.plan === "lrsp").length;
+  if (near) return `The city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title} lists ${near} priority ${near === 1 ? "location" : "locations"} within ${radiusWords(s.miles)} of this intersection, but not this intersection itself.`;
+  return `This intersection is not among the ${nInts} priority intersections in the city's ${lrsp.adopted.slice(0, 4)} ${lrsp.title}.`;
+}

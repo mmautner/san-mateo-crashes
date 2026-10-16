@@ -13,6 +13,7 @@ How the numbers are counted is on the live methodology page (`/san-mateo-crashes
 | `pipeline/export.py` | Writes `site/data/crashes.json` and `site/data/intersections.json` |
 | `pipeline/report.py` | Data-quality report → `pipeline/REPORT.md` |
 | `site/static/core.js` | Counting and wording. Runs in the browser and, under Node, at build time |
+| `site/plans/*.json` | City plans' priority locations and proposals, entered by hand with page citations. `pipeline/plans.py` matches them to intersections and stops on anything ambiguous |
 | `site/council.json` | **Council members by district. Edit this when the council changes.** |
 | `site/config.json` | Base path, bucket, CloudFront ID, contact address |
 | `build_site.py` | Renders every page into `dist/` |
@@ -26,6 +27,7 @@ python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install -r pipeline/req
 pipeline/.venv/bin/python pipeline/fetch.py --refresh        # all years, ~30 min
 pipeline/.venv/bin/python pipeline/fetch.py --geo --refresh  # boundaries, districts, streets
 pipeline/.venv/bin/python pipeline/export.py
+pipeline/.venv/bin/python pipeline/plans.py                  # city plan locations -> site/data/plans.json
 pipeline/.venv/bin/python pipeline/report.py > pipeline/REPORT.md
 ```
 
@@ -33,6 +35,7 @@ Read `REPORT.md` before deploying. Check:
 - **Reporting gaps**: the agency table. If a police department has months with almost no reports, add them to `GAPS` in `pipeline/export.py`, and move `DEFAULT_FIRST_YEAR` if the gap falls in the default range.
 - **Newest year**: compare it with the two before it. Reports keep arriving for months; a low newest year may still be filling in.
 - **Council**: `site/council.json` (districts 1, 3 and 5 change after the November 2026 election).
+- **City plans**: when the city updates a plan or completes a project, edit `site/plans/<plan>.json` and rerun `pipeline/plans.py`.
 
 The newest full year is picked up automatically (the current partial year is always left out).
 

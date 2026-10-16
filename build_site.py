@@ -68,7 +68,7 @@ def head(title, description, path, og_image=None):
   <meta property="og:image:alt" content="{e(description)}">
   <meta name="twitter:card" content="summary_large_image">"""
     return f"""<!DOCTYPE html>
-<html lang="en" data-base="{BASE}" data-version="{VER}">
+<html lang="en" data-base="{BASE}" data-version="{VER}" data-city-service="{e(CFG['city_service_request'])}" data-city-calming="{e(CFG['city_traffic_calming'])}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -162,6 +162,8 @@ def intersection_page(id_, p, meta):
   </ul>
   <p class="cx-meta" style="margin-top:6px">Each dot is one crash, colored by the most exposed person hurt.</p>
 
+  <section class="cx-plan" id="cx-plan" hidden></section>
+
   <div class="cx-council" id="cx-council" hidden></div>
 
   <h2>Crashes</h2>
@@ -244,6 +246,9 @@ def methodology_page(meta):
 
   <h2>Years</h2>
   <p>The site starts at {d0} by default. {e(gap['agency'])} reports from {datetime.date.fromisoformat(gap['from'] + '-01'):%B %Y} through {datetime.date.fromisoformat(gap['to'] + '-01'):%B %Y} are missing from the state's data, so counts for 2021 and 2022 are too low. Years back to {y0} can be added with the year controls. 2016 is left out because nearly all San Mateo Police reports for that year are missing. The current year is left out until it is complete.</p>
+
+  <h2>City plans</h2>
+  <p>Each page says whether the city's <a href="https://www.cityofsanmateo.org/4695/Local-Roadway-Safety-Plan">Local Roadway Safety Plan</a> (adopted May 20, 2024) lists the intersection, or a street segment through it, among its priority locations, and which listed locations fall within the chosen distance. Ranks and names come from the plan's Table 6 (page 48) and Table 7 (page 50). The proposed changes are plain-language summaries of its Table 9 (pages 75–76). The plan ranked locations using crashes from 2017 through 2021, weighted by severity, so its order differs from the counts here. A project's status is shown only when the city reports it complete; otherwise the page links to the city's project page. The source file for these entries is <code>site/plans/lrsp.json</code> in the code repository.</p>
 
   <h2>Comparing intersections</h2>
   <p>An intersection is any place in city limits where two differently named streets meet ({c['intersections']:,} in all). The comparison line counts people hurt within the same distance and years around every one of them. If a location is below the middle, the site shows the typical (median) count instead of a percentage.</p>
