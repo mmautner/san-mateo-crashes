@@ -136,6 +136,7 @@ def intersection_page(id_, p, meta):
   <h1>{e(p['label'])}</h1>
   <p class="cx-headline" id="cx-headline" aria-live="polite">{e(p['headline'])}</p>
   <p class="cx-context" id="cx-context">{e(p['context'])}</p>
+  <p class="cx-pattern" id="cx-pattern"></p>
   <p class="cx-meta">{e(meta['dataThrough'])}. Police-reported crashes only.</p>
   <p class="cx-gap" id="cx-gap"></p>
 
@@ -147,6 +148,8 @@ def intersection_page(id_, p, meta):
   <div class="cx-actions">
     <button type="button" class="cx-btn" id="cx-share">Copy link</button>
   </div>
+
+  <section class="cx-patterns" id="cx-patterns" aria-live="polite"></section>
 
   <div class="cx-map" id="cx-map" role="img" aria-label="Map of the crashes listed below"></div>
   <ul class="cx-legend" aria-label="Map key">
@@ -162,6 +165,7 @@ def intersection_page(id_, p, meta):
 
   <h2>Crashes</h2>
   <p class="cx-meta" id="cx-list-count"></p>
+  <p class="cx-meta">Tap a crash for what the police report says. Tap a dot on the map for the same.</p>
   <ul class="cx-list" id="cx-list"></ul>
   <button type="button" class="cx-btn cx-more" id="cx-more" hidden></button>
   <noscript><p class="cx-meta">Turn on JavaScript to see the map and the list of crashes.</p></noscript>
@@ -188,6 +192,7 @@ def index_page(meta):
 
 def methodology_page(meta):
     c = meta["counts"]
+    MIN_PATTERN = 5
     gap = meta["gaps"][0]
     y0, y1 = meta["years"]
     d0 = meta["default_years"][0]
@@ -229,6 +234,9 @@ def methodology_page(meta):
     <tr><td>In a vehicle</td><td>Drivers and passengers of cars, trucks, buses, motorcycles and mopeds</td></tr>
   </table>
   <p>For deaths, the site shows only the month, year, and whether the person was walking, on a bike or scooter, or in a vehicle.</p>
+
+  <h2>Crash details</h2>
+  <p>Tapping a crash shows what the officer wrote: the hour, the light, the type of crash, who the officer found most at fault and what they were doing, the cause the officer recorded (translated from the California Vehicle Code section into plain words), and whether it was a hit and run. Fault and cause are the officer's judgment at the scene, not a court finding, and some reports contradict themselves; the site shows them as written. Crashes where someone died show none of these details. The summary of causes on each page counts only the crashes that have details, and a one-line summary appears only when at least {MIN_PATTERN} crashes are in range and the top cause appears at least 3 times.</p>
 
   <h2>Where each crash is placed</h2>
   <p>Most reports include coordinates. {c['placed_from_street_names']} crashes had none and were placed from the report's street description (the two streets, plus the distance and direction the officer recorded). {c['moved_to_street_description']} crashes had coordinates more than 200 meters from the streets the officer named; those were moved to the named location. Both kinds are marked “approximate” in the list.</p>

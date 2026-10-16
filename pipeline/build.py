@@ -328,3 +328,139 @@ def short_name(name):
     if len(w) > 1 and w[-1] in _ABBR:
         w[-1] = _ABBR[w[-1]]
     return " ".join(w)
+
+
+# ---------------------------------------------------------------- crash details (plain language)
+# Shown when someone taps a crash. Causes are the officer's judgment at the scene.
+
+CRASH_TYPE = {
+    "BROADSIDE": "Side-impact (broadside)", "REAR END": "Rear-end", "VEHICLE/PEDESTRAIN": "Vehicle hit a person walking",
+    "VEHICLE/PEDESTRIAN": "Vehicle hit a person walking", "SIDE SWIPE": "Sideswipe", "HEAD-ON": "Head-on",
+    "HIT OBJECT": "Hit an object", "OVERTURNED": "Rollover", "OTHER": "Other",
+}
+LIGHT = {
+    "DAYLIGHT": "Daylight", "DUSK-DAWN": "Dusk or dawn", "DARK-STREET LIGHTS": "Dark, street lights on",
+    "DARK-NO STREET LIGHTS": "Dark, no street lights", "DARK-STREET LIGHTS NOT FUNCTIONING*": "Dark, street lights not working",
+}
+PED_ACTION = {
+    "CROSSING IN CROSS WALK AT INTERSECTION": "Crossing in the crosswalk at the intersection",
+    "CROSSING IN CROSS WALK - NOT AT INTERSECTION": "Crossing in a mid-block crosswalk",
+    "CROSSING - NOT IN CROSSWALK": "Crossing outside a crosswalk",
+    "IN ROAD - INCLUDES SHOULDER": "In the road or on the shoulder",
+    "NOT IN ROAD": "Not in the road (sidewalk or driveway)",
+}
+MOVEMENT = {
+    "PROCEEDING STRAIGHT": "going straight", "MAKING LEFT TURN": "turning left", "MAKING RIGHT TURN": "turning right",
+    "ENTERING TRAFFICD": "entering traffic", "ENTERING TRAFFIC": "entering traffic", "OTHER UNSAFE TURNING": "turning unsafely",
+    "SLOWING/STOPPING": "slowing or stopping", "BACKING": "backing up", "CHANGING LANES": "changing lanes",
+    "MAKING U TURN": "making a U-turn", "STOPPED": "stopped", "TRAVELLING WRONG WAY": "going the wrong way",
+    "RAN OFF ROAD": "running off the road", "PASSING OTHER VEHICLE": "passing", "PARKED": "parked",
+    "PARKING MANEUVER": "parking", "MERGING": "merging", "XING INTO OPPOSING LANE": "crossing into oncoming lanes",
+    "LANE SPLITTING": "lane splitting",
+}
+# California Vehicle Code section -> what the officer said caused the crash
+CAUSE = {
+    "22350": "Unsafe speed for conditions",
+    "22107": "Unsafe turn or lane change",
+    "21950A": "Driver didn't yield to a person in a crosswalk",
+    "21950": "Driver didn't yield to a person in a crosswalk",
+    "21950B": "Person walking stepped into a vehicle's path",
+    "21950C": "Driver didn't slow for a person in a crosswalk",
+    "21453A": "Ran a red light", "21453": "Ran a red light", "21453B": "Ran a red light",
+    "21453C": "Turned against a red arrow", "21453D": "Person walking against a red light",
+    "21802A": "Didn't yield after stopping at a stop sign", "21802": "Didn't yield after stopping at a stop sign",
+    "21801A": "Didn't yield while turning left or making a U-turn", "21801": "Didn't yield while turning left or making a U-turn",
+    "22106": "Unsafe start or backing up",
+    "21804A": "Didn't yield pulling out of a driveway or parking lot", "21804": "Didn't yield pulling out of a driveway or parking lot",
+    "23152A": "Driving under the influence", "23152B": "Driving under the influence", "23152": "Driving under the influence",
+    "23153A": "Driving under the influence", "23153B": "Driving under the influence", "23153": "Driving under the influence",
+    "21703": "Following too closely",
+    "21650": "On the wrong side of the road", "21650.1": "Riding a bike against traffic", "216501": "Riding a bike against traffic",
+    "21658A": "Unsafe lane change", "21658": "Unsafe lane change",
+    "22450A": "Didn't stop at a stop sign", "22450": "Didn't stop at a stop sign",
+    "21800A": "Didn't yield at an intersection", "21800": "Didn't yield at an intersection",
+    "21800B": "Didn't yield at an intersection", "21800C": "Didn't yield at an intersection",
+    "21954A": "Person walking outside a crosswalk didn't yield", "21954": "Person walking outside a crosswalk didn't yield",
+    "21952": "Driver didn't yield to a person on the sidewalk",
+    "22517": "Car door opened into traffic",
+    "21202": "Bike not riding near the right edge", "21202A": "Bike not riding near the right edge",
+    "21955": "Person walking crossed between signals",
+    "21456": "Person walking against the walk signal", "21456A": "Person walking against the walk signal",
+    "21456B": "Person walking against the walk signal",
+    "21460": "Crossed double yellow lines", "21460A": "Crossed double yellow lines",
+    "21750": "Unsafe passing", "21755": "Unsafe passing on the right", "21755A": "Unsafe passing on the right",
+    "22100": "Turned from the wrong lane", "22100A": "Turned from the wrong lane", "22100B": "Turned from the wrong lane",
+    "23103": "Reckless driving", "23103A": "Reckless driving",
+    "21451A": "Didn't yield on a green light", "21451": "Didn't yield on a green light",
+    "21452A": "Ran a yellow light", "21457A": "Didn't stop at a flashing red", "21457": "Didn't stop at a flashing red",
+    "21651": "Crossed a divider", "21651A": "Crossed a divider", "21651B": "Wrong way on a divided road",
+    "21663": "Driving on the sidewalk", "21212": "Bike or scooter rider safety rule", "21235": "Scooter rule violation",
+    "22101": "Ignored a turn-restriction sign", "22101D": "Ignored a turn-restriction sign",
+    "21200": "Bike rider broke a traffic rule", "21201": "Bike missing required equipment",
+    "21208": "Bike not using the bike lane", "21209": "Driver in the bike lane", "21209A": "Driver in the bike lane",
+    "22526": "Blocked an intersection", "21717": "Unsafe turn across a bike lane",
+    "21760": "Passed a bike too closely", "21760A": "Passed a bike too closely", "21760B": "Passed a bike too closely",
+    "21760C": "Passed a bike too closely", "22103": "Unsafe U-turn", "21461A": "Ignored a traffic sign",
+    "21461": "Ignored a traffic sign", "22109": "Stopped suddenly without signaling", "21751": "Unsafe passing",
+    "22108": "Didn't signal before turning", "21803": "Didn't yield at a yield sign", "21803A": "Didn't yield at a yield sign",
+    "22515": "Parked vehicle rolled away", "22515A": "Parked vehicle rolled away", "23104": "Reckless driving",
+    "23104A": "Reckless driving", "UNSAFETURN": "Unsafe turn or lane change", "22400A": "Driving too slowly for traffic",
+}
+
+
+def normalize_section(s):
+    """'21950(a) CVC' / 'CVC 21950(a)' / '21950A' / '22350 cvc' -> '21950A' / '22350'."""
+    s = re.sub(r"\b(CVC|VC)\b", "", s.upper())
+    s = re.sub(r"\(([A-Z0-9]+)\)", r"\1", s)
+    return re.sub(r"[^0-9A-Z.]", "", s)
+
+
+def cause_text(raw):
+    code = normalize_section(raw)
+    if not code:
+        return ""
+    if code in CAUSE:
+        return CAUSE[code]
+    base = re.match(r"\d+(\.\d+)?", code)
+    if base and base.group(0) in CAUSE:
+        return CAUSE[base.group(0)]
+    return f"Vehicle Code {code}"
+
+
+def primary_party_text(party):
+    """'Driver turning left', 'Person on a bike going straight', 'Person walking'."""
+    if not party:
+        return ""
+    pt, vt = party["PartyType"], party["Vehicle1TypeDesc"]
+    if pt == "Pedestrian":
+        return "Person walking"
+    if pt == "ParkedVehicle":
+        return "Parked vehicle"
+    if pt == "Bicyclist" or vt in BIKE_VEHICLES:
+        who = "Person on a bike"
+    elif vt in SCOOTER_VEHICLES:
+        who = "Person on a scooter"
+    elif vt in ("Motorcycle", "MotorDrivenCycleScooter15HpOrLess"):
+        who = "Motorcyclist"
+    elif vt == "OtherUnknownHitAndRunDriver":
+        who = "Hit-and-run driver"
+    else:
+        who = "Driver"
+    move = MOVEMENT.get(party["MovementPrecCollDescription"], "")
+    return f"{who} {move}".strip()
+
+
+def crash_details(r, parties):
+    """Plain-language facts from one report, for the tap-to-see card."""
+    t = r["Crash Time Description"]
+    hour = int(t[:-2]) if re.fullmatch(r"\d{3,4}", t) and int(t[:-2]) < 24 else None
+    prim = next((p for p in parties if p["PartyNumber"] == r["PrimaryCollisionPartyNumber"]), None)
+    return {
+        "hour": hour,
+        "light": LIGHT.get(r["LightingDescription"], ""),
+        "type": CRASH_TYPE.get(r["Collision Type Description"], ""),
+        "cause": cause_text(r["Primary Collision Factor Violation"]),
+        "who": primary_party_text(prim),
+        "ped": PED_ACTION.get(r["PedestrianActionDesc"], ""),
+        "hitrun": r["HitRun"] in ("F", "M"),
+    }

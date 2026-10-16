@@ -2,6 +2,7 @@ import * as C from "./core.js";
 
 const BASE = document.documentElement.dataset.base; // "/crashes/"
 const $ = (s, el = document) => el.querySelector(s);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function loadData() {
@@ -59,6 +60,13 @@ function setupSearch(data) {
   }
 }
 
+const POPUP_ROWS = new Set(["Type of crash", "Cause the officer recorded"]);
+function detailsHtml(c, compact = false) {
+  const rows = C.detailRows(c).filter(([k]) => !compact || POPUP_ROWS.has(k));
+  if (!rows.length) return "";
+  return `<dl class="cx-dl">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
+}
+
 // ------------------------------------------------------------------ intersection page
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
@@ -104,26 +112,53 @@ function setupIntersection(data, page) {
     $("#cx-headline").textContent = text;
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
     $("#cx-gap").textContent = C.gapNote(meta, s.y0, s.y1);
-    current = { text, near };
+    const pat = C.patterns(near);
+    const sentence = C.patternSentence(pat);
+    $("#cx-pattern").textContent = sentence;
+    renderPatterns(pat);
+    current = { text, near, sentence };
     renderList(near);
     updateCouncil();
     map.update(near, s.miles);
+  }
+
+  function renderPatterns(p) {
+    const box = $("#cx-patterns");
+    if (p.n < C.MIN_PATTERN_CRASHES) {
+      box.innerHTML = `<h2>What the police reports say</h2><p class="cx-meta">Too few crashes here to show a pattern. Tap any crash below for its details.</p>`;
+      return;
+    }
+    const li = (rows) => rows.map(([v, k]) => `<li>${esc(v)} <span class="cx-count">${k}</span></li>`).join("");
+    const facts = [`<li>After dark: <strong>${p.dark}</strong> of ${p.n} crashes</li>`];
+    if (p.walking) facts.push(`<li>Someone walking was hit: <strong>${p.walking}</strong> crashes; in ${p.crosswalk} of them the person was in a crosswalk</li>`);
+    if (p.hitrun) facts.push(`<li>Hit and run: <strong>${p.hitrun}</strong> crashes</li>`);
+    box.innerHTML = `<h2>What the police reports say</h2>
+      <p class="cx-meta">From the ${p.n} crashes in which someone was hurt and no one died.</p>
+      <div class="cx-pat-grid">
+        <div><h3>Cause the officer recorded</h3><ol class="cx-rank">${li(p.causes)}</ol></div>
+        <div><h3>Most at fault, per the officer</h3><ol class="cx-rank">${li(p.who)}</ol></div>
+        <div><h3>Type of crash</h3><ol class="cx-rank">${li(p.types)}</ol></div>
+      </div>
+      <ul class="cx-facts">${facts.join("")}</ul>
+      <p class="cx-meta">Causes and fault are the officer's judgment at the scene, not a court finding.</p>`;
   }
 
   // list
   const LIST_STEP = 50;
   let shown = LIST_STEP;
   function renderList(near) {
-    const rows = near.slice(0, shown).map((c) => {
+    const rows = near.slice(0, shown).map((c, i) => {
       const mode = c.killed ? "killed" : C.MODES[c.mode].key;
       const dot = c.killed ? `<span class="cx-key cx-key-killed" aria-hidden="true"></span>`
         : c.mode === "v" ? `<span class="cx-key cx-key-ring" aria-hidden="true"></span>`
         : `<span class="cx-key" style="background:var(--${mode})" aria-hidden="true"></span>`;
       const who = c.killed ? C.deathLine(c.people) : C.describePeople(c.people);
-      const whoText = who.charAt(0).toUpperCase() + who.slice(1);
+      const whoText = cap(who);
       const where = c.killed ? "" : `${esc(c.place || "Location from police report")}${c.approx ? " (approximate)" : ""}`;
-      return `<li class="${c.killed ? "cx-death" : ""}"><span class="cx-date">${C.longDate(c.date)}</span>`
-        + `<span class="cx-where">${where}</span><span class="cx-who">${dot}${esc(whoText)}</span></li>`;
+      const head = `<span class="cx-date">${C.longDate(c.date)}</span>`
+        + `<span class="cx-where">${where}</span><span class="cx-who">${dot}${esc(whoText)}</span>`;
+      if (c.killed) return `<li class="cx-death"><div class="cx-row">${head}</div></li>`;
+      return `<li id="cx-c-${i}"><details><summary class="cx-row">${head}</summary>${detailsHtml(c)}</details></li>`;
     });
     $("#cx-list").innerHTML = rows.join("");
     $("#cx-list-count").textContent = near.length
@@ -134,6 +169,17 @@ function setupIntersection(data, page) {
     more.textContent = `Show ${Math.min(LIST_STEP, near.length - shown)} more`;
   }
   $("#cx-more").addEventListener("click", () => { shown += LIST_STEP; renderList(current.near); });
+  // "Full details" in a map popup opens that crash in the list
+  $("#cx-map").addEventListener("click", (e) => {
+    const b = e.target.closest(".cx-goto");
+    if (!b) return;
+    const i = +b.dataset.i;
+    if (i >= shown) { shown = Math.ceil((i + 1) / LIST_STEP) * LIST_STEP; renderList(current.near); }
+    const li = $(`#cx-c-${i}`);
+    li.querySelector("details").open = true;
+    li.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    li.querySelector("summary").focus({ preventScroll: true });
+  });
 
   // share
   const shareBtn = $("#cx-share");
@@ -163,7 +209,7 @@ function setupIntersection(data, page) {
     const m = council.members[String(int.district)];
     if (!m) { box.hidden = true; return; }
     const formal = m.salutation;
-    const body = `Dear ${formal},\n\n${current.text}\n\n${location.href}\n\n\n\nWhat is the city planning for this intersection?\n`;
+    const body = `Dear ${formal},\n\n${current.text}${current.sentence ? ` ${current.sentence}` : ""}\n\n${location.href}\n\n\n\nWhat is the city planning for this intersection?\n`;
     const href = `mailto:${m.email}?subject=${encodeURIComponent(`Crashes near ${int.label}`)}&body=${encodeURIComponent(body)}`;
     box.innerHTML = `<p>${esc(int.label)} is in City Council District ${int.district}, represented by ${esc(m.title)} ${esc(m.name)}.</p>`
       + `<a class="cx-btn cx-btn-primary" href="${esc(href)}">Email ${esc(formal)}</a>`;
@@ -192,7 +238,7 @@ function createMap(int, el) {
   // crashes at the exact same spot are fanned out a few meters so each shows
   const features = (near) => {
     const seen = new Map();
-    return near.map((c) => {
+    return near.map((c, i) => {
       const k = `${c.lon},${c.lat}`, n = seen.get(k) || 0;
       seen.set(k, n + 1);
       const a = n * 2.4, d = n ? 4 + 3 * Math.sqrt(n) : 0;
@@ -205,7 +251,8 @@ function createMap(int, el) {
           kind: c.killed ? "killed" : C.MODES[c.mode].key,
           label: c.killed ? `Killed · ${C.monthYear(c.date)} · ${killedMode.many}` : "",
           html: `<strong>${C.longDate(c.date)}</strong><br>${c.killed ? "" : esc(c.place || "") + "<br>"}${esc(c.killed
-            ? C.deathLine(c.people) : C.describePeople(c.people))}`,
+            ? C.deathLine(c.people) : cap(C.describePeople(c.people)))}${detailsHtml(c, true)}`
+            + (c.killed ? "" : `<button type="button" class="cx-goto" data-i="${i}">Full details</button>`),
         },
       };
     });

@@ -4,7 +4,7 @@
     python pipeline/export.py         # -> site/data/crashes.json, site/data/intersections.json
 
 crashes.json
-  crashes: [x, y, date, place, how, people] per crash with at least one person hurt
+  crashes: [x, y, date, place, how, people, details] per crash with at least one person hurt
     x, y    longitude/latitude × 1e5, as integers
     date    "YYYY-MM-DD"; "YYYY-MM" when someone was killed (no day is published)
     place   index into `places` (nearest intersection label), or -1
@@ -13,6 +13,9 @@ crashes.json
     people  string of 2-letter codes, one per person hurt:
             mode (w walking, b biking, s scooter, v in a vehicle) +
             severity (k killed, s seriously injured, o other injury)
+    details 0 for crashes where someone was killed (only month, year and mode are published);
+            otherwise [hour or -1, light, type, cause, who, ped, hit_and_run], where light..ped
+            are indexes into text[light|type|cause|who|ped] (index 0 = not recorded)
 intersections.json
   [id, label, lon×1e5, lat×1e5, council district] for each intersection in city limits
 """
@@ -74,6 +77,15 @@ def main():
     tree = STRtree([Point(i["x"], i["y"]) for i in ints_all])
 
     places, place_ix = [], {}
+    text = {k: [""] for k in ("light", "type", "cause", "who", "ped")}
+    text_ix = {k: {"": 0} for k in text}
+
+    def tix(kind, value):
+        ix = text_ix[kind]
+        if value not in ix:
+            ix[value] = len(text[kind])
+            text[kind].append(value)
+        return ix[value]
     crashes, stats, downloaded = [], collections.Counter(), set()
     for y in years:
         yd = B.load_year(y)
@@ -93,6 +105,10 @@ def main():
             r["_loc"] = (x, yy, how)
             kept[r["Collision Id"]] = r
         people, _ = B.hurt_people(yd, set(kept))
+        parties_by = collections.defaultdict(list)
+        for p in yd["parties"]:
+            if p["CollisionId"] in kept:
+                parties_by[p["CollisionId"]].append(p)
         fw_people, _ = B.hurt_people(yd, freeway_ids)
         stats["freeway_people"] += len(fw_people)
         stats["freeway_killed"] += sum(p["severity"] == "killed" for p in fw_people)
@@ -115,8 +131,13 @@ def main():
                 if place == len(places):
                     places.append(lab)
             order = sorted(ppl, key=lambda p: ("kso".index(SEV[p["severity"]]), p["mode"]))
+            details = 0
+            if not killed:
+                dd = B.crash_details(r, parties_by[cid])
+                details = [-1 if dd["hour"] is None else dd["hour"], *(tix(k, dd[k]) for k in ("light", "type", "cause", "who", "ped")),
+                           1 if dd["hitrun"] else 0]
             crashes.append([round(lon * 1e5), round(lat * 1e5), date, place, 0 if how == "reported" else 1,
-                            "".join(MODE[p["mode"]] + SEV[p["severity"]] for p in order)])
+                            "".join(MODE[p["mode"]] + SEV[p["severity"]] for p in order), details])
     crashes.sort(key=lambda c: c[2], reverse=True)
 
     # intersections inside city limits; same label in two places gets a suffix
@@ -150,7 +171,7 @@ def main():
     }
     meta["counts"]["intersections"] = len(ints_out)
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "crashes.json").write_text(json.dumps({"meta": meta, "places": places, "crashes": crashes}, separators=(",", ":")))
+    (OUT / "crashes.json").write_text(json.dumps({"meta": meta, "places": places, "text": text, "crashes": crashes}, separators=(",", ":")))
     (OUT / "intersections.json").write_text(json.dumps(ints_out, separators=(",", ":")))
     n_people = sum(len(c[5]) // 2 for c in crashes)
     print(f"{len(crashes)} crashes, {n_people} people hurt, {len(ints_out)} intersections, years {years[0]}-{years[-1]}", file=sys.stderr)

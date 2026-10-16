@@ -28,7 +28,8 @@ const KY = 110574;
 export const toXY = (lon, lat) => [lon * KX, lat * KY];
 
 export function prepare(crashData, intersections) {
-  const crashes = crashData.crashes.map(([x, y, date, place, how, people]) => {
+  const T = crashData.text;
+  const crashes = crashData.crashes.map(([x, y, date, place, how, people, d]) => {
     const lon = x / 1e5, lat = y / 1e5;
     const [px, py] = toXY(lon, lat);
     const codes = people.match(/../g);
@@ -38,6 +39,8 @@ export function prepare(crashData, intersections) {
       approx: how === 1, people: codes,
       killed: codes.some((c) => c[1] === "k"),
       mode: MODE_ORDER.find((m) => codes.some((c) => c[0] === m)),
+      details: d ? { hour: d[0] < 0 ? null : d[0], light: T.light[d[1]], type: T.type[d[2]], cause: T.cause[d[3]],
+        who: T.who[d[4]], ped: T.ped[d[5]], hitrun: d[6] === 1 } : null,
     };
   });
   const ints = intersections.map(([id, label, x, y, district]) => {
@@ -215,4 +218,60 @@ export function deathLine(codes) {
   const who = killed.length === 1 ? `A ${modes[0].noun} was killed` : `${killed.length} people (${modes.map((m) => m.many).join(", ")}) were killed`;
   const others = codes.length - killed.length;
   return others ? `${who}. ${others} other ${others === 1 ? "person was" : "people were"} hurt.` : `${who}.`;
+}
+
+// ------------------------------------------------------------------ crash details
+
+const clock = (h) => `${h % 12 || 12} ${h < 12 ? "am" : "pm"}`;
+export function hourText(h) {
+  if (h == null) return "";
+  return `Between ${clock(h).replace(/ (am|pm)$/, (h < 12) === (h + 1 < 12 || h + 1 === 24) ? "" : " $1")} and ${clock((h + 1) % 24)}`;
+}
+
+// [label, value] rows for one crash's card. Crashes where someone died have none.
+export function detailRows(c) {
+  const d = c.details;
+  if (!d) return [];
+  const rows = [
+    ["Time", hourText(d.hour)],
+    ["Light", d.light],
+    ["Type of crash", d.type],
+    ["Most at fault, per the officer", d.who],
+    ["Cause the officer recorded", d.cause],
+  ];
+  if (c.people.some((p) => p[0] === "w")) rows.push(["The person walking was", d.ped]);
+  if (d.hitrun) rows.push(["Hit and run", "Yes, a driver left the scene"]);
+  return rows.filter(([, v]) => v);
+}
+
+const top = (counts, k) => [...counts].filter(([v]) => v).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, k);
+const tallyBy = (xs, f) => { const m = new Map(); for (const x of xs) { const v = f(x); m.set(v, (m.get(v) || 0) + 1); } return m; };
+
+// What the reports say across the crashes in range (crashes with a death are left out).
+export function patterns(near) {
+  const cs = near.filter((c) => c.details);
+  const walking = cs.filter((c) => c.people.some((p) => p[0] === "w"));
+  return {
+    n: cs.length,
+    causes: top(tallyBy(cs, (c) => c.details.cause), 3),
+    types: top(tallyBy(cs, (c) => c.details.type), 3),
+    who: top(tallyBy(cs, (c) => c.details.who), 3),
+    dark: cs.filter((c) => /^Dark/.test(c.details.light)).length,
+    walking: walking.length,
+    crosswalk: walking.filter((c) => /^Crossing in (the|a mid-block) crosswalk/.test(c.details.ped)).length,
+    hitrun: cs.filter((c) => c.details.hitrun).length,
+  };
+}
+
+export const MIN_PATTERN_CRASHES = 5;
+const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+
+// One sentence for the top of the page and the council email, only when a pattern is real.
+export function patternSentence(p) {
+  if (p.n < MIN_PATTERN_CRASHES || !p.causes.length || p.causes[0][1] < 3) return "";
+  const k = p.causes[0][1];
+  const tied = p.causes.filter(([, n]) => n === k).map(([c]) => lower(c));
+  if (tied.length === 1) return `The cause police recorded most often here: ${tied[0]} (${k} of ${p.n} crashes).`;
+  const list = tied.length === 2 ? tied.join(" and ") : `${tied.slice(0, -1).join(", ")}, and ${tied.at(-1)}`;
+  return `The causes police recorded most often here: ${list} (${k} crashes each, of ${p.n}).`;
 }
