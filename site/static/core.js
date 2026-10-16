@@ -117,8 +117,16 @@ export function headline(label, t, s, lastYear) {
   const parts = MODE_ORDER.filter((m) => t[m] > 0).map((m) => n(t[m], MODES[m].one, MODES[m].many));
   const people = t.n === 1 ? "1 person was hurt in a crash" : `${t.n} people were hurt in crashes`;
   let text = `${when}, at least ${people} ${where}: ${parts.join(", ")}.`;
-  if (t.killed > 0) {
-    text += t.n === 1 ? " They were killed." : ` ${t.killed} of them ${t.killed === 1 ? "was" : "were"} killed.`;
+  // say plainly how many were badly hurt, so minor injuries aren't mistaken for the whole count
+  if (t.n === 1) {
+    if (t.killed) text += " They were killed.";
+    else if (t.serious) text += " They were seriously injured.";
+  } else {
+    const was = (k) => (k === 1 ? "was" : "were");
+    const bad = [];
+    if (t.serious) bad.push(`${t.serious} ${was(t.serious)} seriously injured`);
+    if (t.killed) bad.push(`${t.killed} ${was(t.killed)} killed`);
+    if (bad.length) text += ` ${bad[0].replace(/^(\d+)/, "$1 of them")}${bad[1] ? ` and ${bad[1]}` : ""}.`;
   }
   return text;
 }

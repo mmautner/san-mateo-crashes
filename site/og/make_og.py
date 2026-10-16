@@ -92,21 +92,26 @@ def intersection_image(args):
              ("scooter", p["scooter"], "on a scooter" if p["scooter"] == 1 else "on scooters"),
              ("vehicle", p["vehicle"], "in a vehicle" if p["vehicle"] == 1 else "in vehicles")]
     parts = [t for t in parts if t[1] > 0]
+    if p.get("serious"):
+        parts.append(("serious", p["serious"], "seriously injured"))
     if p["killed"]:
         parts.append(("killed", p["killed"], "killed"))
     small = font("IBMPlexSans.ttf", 28, 400)
     cx, cy = PAD, y_break
     for kind, k, words in parts:
         r = 9
-        if kind == "vehicle":
+        if kind == "serious":
+            pass  # text only
+        elif kind == "vehicle":
             d.ellipse([cx, cy - r, cx + 2 * r, cy + r], outline=TEXT2, width=3)
         elif kind == "killed":
             d.polygon([(cx + r, cy - r - 2), (cx + 2 * r + 2, cy), (cx + r, cy + r + 2), (cx - 2, cy)], fill=TEXT)
         else:
             d.ellipse([cx, cy - r, cx + 2 * r, cy + r], fill=MODE_COLORS[kind])
         t = f"{k:,} {words}"
-        d.text((cx + 2 * r + 10, cy), t, font=small, fill=TEXT2, anchor="lm")
-        cx += 2 * r + 10 + d.textlength(t, font=small) + 30
+        pad = 0 if kind == "serious" else 2 * r + 10
+        d.text((cx + pad, cy), t, font=small, fill=TEXT2, anchor="lm")
+        cx += pad + d.textlength(t, font=small) + 30
 
     footer(d, f"{p['years']} · police reports · maxmautner.com{CFG['base'].rstrip('/')}")
     img = img.quantize(colors=64, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
