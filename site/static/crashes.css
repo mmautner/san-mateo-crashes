@@ -244,3 +244,7 @@ header nav a { font-size: 16px; color: var(--text-2); text-decoration: none; }
 .cx-ex-n { display: block; color: var(--text-2); font-size: 14px; margin-top: 2px; }
 .cx-ex-n strong { color: var(--accent); }
 .cx-headline strong { font-weight: 600; }
+.cx-key-center { background: transparent; border: 3px solid var(--accent); width: 12px; height: 12px; }
+.cx-key-circle { background: transparent; border: 1.5px dashed var(--accent); width: 14px; height: 14px; }
+.cx-years-key { display: flex; align-items: center; gap: 6px; }
+.cx-swatch { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); flex: none; }

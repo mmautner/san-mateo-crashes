@@ -117,6 +117,7 @@ function setupIntersection(data, page) {
     const text = C.headline(int.label, t, s, meta.years[1]);
     $("#cx-headline").textContent = text;
     $("#cx-at").textContent = C.atIntersectionSentence(C.atIntersection(data, int, s), t.n);
+    $("#cx-legend-circle").textContent = cap(radiusWordsFor(s.miles));
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
 
     const noInjury = C.noInjurySentence(C.noInjuryCount(data, int.px, int.py, s.miles, s.y0, s.y1), s);
@@ -159,6 +160,7 @@ function setupIntersection(data, page) {
     $("#cx-years").innerHTML = `<h3 class="cx-years-title">People hurt each year within ${esc(radiusWordsFor(s.miles))}</h3>`
       + `<div class="cx-bars" aria-hidden="true">${bars}</div>`
       + `<ul class="cx-sr">${rows.map((r) => `<li>${r.year}: ${r.n}</li>`).join("")}</ul>`
+      + `<p class="cx-meta cx-years-key"><span class="cx-swatch" aria-hidden="true"></span>The years counted above${s.y0 === meta.years[0] && s.y1 === meta.years[1] ? "" : `; gray bars are other years`}.</p>`
       + (anyGap ? `<p class="cx-meta">* ${esc(g.agency)} reports from ${C.monthYear(g.from)} through ${C.monthYear(g.to)} are missing from the state's data, so these years count too few.</p>` : "");
   }
 

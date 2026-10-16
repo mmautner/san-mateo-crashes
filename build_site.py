@@ -133,12 +133,12 @@ def intersection_page(id_, p, meta):
     title = f"Crashes near {p['label']}, San Mateo"
     return head(title, p["headline"], path, og_image=f"{BASE}og/{id_}.png") + f"""
 <article class="cx cx-intersection" data-id="{e(id_)}">
-  <span class="cx-eyebrow"><a href="{BASE}">San Mateo crash lookup</a> · <a href="{BASE}#cx-q">Look up another intersection</a></span>
+  <span class="cx-eyebrow"><a href="{BASE}">San Mateo crash lookup</a> · <a href="{BASE}#cx-q">Search again</a></span>
   <h1>{e(p['label'])}</h1>
   <p class="cx-headline" id="cx-headline" aria-live="polite">{e(p['headline'])}</p>
   <p class="cx-at" id="cx-at">{e(p['at'])}</p>
   <p class="cx-context" id="cx-context">{e(p['context'])}</p>
-  <p class="cx-meta">{e(meta['dataThrough'])}. Police-reported crashes only.</p>
+  <p class="cx-meta">{e(meta['dataThrough'])}.</p>
 
   <div class="cx-controls" role="group" aria-label="Settings">
     <label>Distance<select id="cx-radius"></select></label>
@@ -155,6 +155,8 @@ def intersection_page(id_, p, meta):
     <li><span class="cx-key" style="background:var(--scooter)"></span>On a scooter</li>
     <li><span class="cx-key cx-key-ring"></span>In a vehicle</li>
     <li><span class="cx-key cx-key-killed"></span>Killed (month and year only)</li>
+    <li><span class="cx-key cx-key-center"></span>This intersection</li>
+    <li><span class="cx-key cx-key-circle"></span><span id="cx-legend-circle">A quarter mile</span></li>
   </ul>
   <p class="cx-meta" style="margin-top:6px">Each dot is one crash, colored by who was hurt. When several people were, the dot shows the person walking, biking or on a scooter. Tap a dot for details.</p>
 
@@ -199,7 +201,7 @@ def index_page(meta, pre):
     examples = [(i, pre[i]) for i in CFG.get("examples", []) if i in pre]
     cards = "".join(
         f'<li><a href="{BASE}{e(i)}/"><span class="cx-ex-name">{e(p["label"])}</span>'
-        f'<span class="cx-ex-n"><strong>{p["n"]}</strong> {"person" if p["n"] == 1 else "people"} hurt within a quarter mile</span></a></li>'
+        f'<span class="cx-ex-n"><strong>{p["n"]}</strong> {"person" if p["n"] == 1 else "people"} hurt within a quarter mile since {y0}</span></a></li>'
         for i, p in examples)
     return head("Crashes near you in San Mateo", desc, BASE, og_image=f"{BASE}og/index.png") + f"""
 <article class="cx">
