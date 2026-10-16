@@ -1,0 +1,11 @@
+{
+  "_readme": "One entry per San Mateo City Council district. Edit names, titles and emails here; the page reads this file directly. Districts 1, 3 and 5 are on the November 2026 ballot: update them when the new council is seated in December 2026. Source: cityofsanmateo.org staff directory (checked 2026-10-15) and San Mateo County LAFCO city profile.",
+  "checked": "2026-10-15",
+  "members": {
+    "1": { "name": "Lisa Diaz Nash", "title": "Council Member", "salutation": "Council Member Diaz Nash", "email": "ldiaznash@cityofsanmateo.org", "term_ends": "2026-12" },
+    "2": { "name": "Nicole Fernandez", "title": "Deputy Mayor", "salutation": "Deputy Mayor Fernandez", "email": "nfernandez@cityofsanmateo.org", "term_ends": "2028-12" },
+    "3": { "name": "Rob Newsom", "title": "Council Member", "salutation": "Council Member Newsom", "email": "rnewsom@cityofsanmateo.org", "term_ends": "2026-12" },
+    "4": { "name": "Danielle Cwirko-Godycki", "title": "Council Member", "salutation": "Council Member Cwirko-Godycki", "email": "dcwirkogodycki@cityofsanmateo.org", "term_ends": "2028-12" },
+    "5": { "name": "Adam Loraine", "title": "Mayor", "salutation": "Mayor Loraine", "email": "aloraine@cityofsanmateo.org", "term_ends": "2026-12" }
+  }
+}
