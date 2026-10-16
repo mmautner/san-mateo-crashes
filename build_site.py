@@ -154,7 +154,7 @@ def intersection_page(id_, p, meta):
     <li><span class="cx-key cx-key-ring"></span>In a vehicle</li>
     <li><span class="cx-key cx-key-killed"></span>Killed (month and year only)</li>
   </ul>
-  <p class="cx-meta" style="margin-top:6px">Each dot is one crash, colored by the most exposed person hurt.</p>
+  <p class="cx-meta" style="margin-top:6px">Each dot is one crash, colored by who was hurt. When several people were, the dot shows the person walking, biking or on a scooter. Tap a dot for details.</p>
 
   <section class="cx-patterns" id="cx-patterns" aria-live="polite"></section>
 
