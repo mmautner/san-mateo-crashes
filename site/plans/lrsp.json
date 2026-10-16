@@ -1,12 +1,13 @@
 {
   "_readme": "Hand-entered from the City of San Mateo Local Roadway Safety Plan (adopted May 20, 2024). Location names and ranks are copied from Table 6 (page 48) and Table 7 (page 50); proposed changes are plain-language summaries of Table 9 (pages 75-76). 'streets' are the two names pipeline/plans.py matches against OpenStreetMap. Statuses are only recorded when completed, with where and when they were checked. Rerun: pipeline/.venv/bin/python pipeline/plans.py",
   "id": "lrsp",
+  "label": "Road safety plan",
   "title": "Local Roadway Safety Plan",
   "short": "the city's 2024 road safety plan",
   "adopted": "2024-05-20",
   "url": "https://www.cityofsanmateo.org/4695/Local-Roadway-Safety-Plan",
   "pdf": "https://www.cityofsanmateo.org/DocumentCenter/View/94929/Adopted-Local-Roadway-Safety-Plan-with-Appendices",
-  "method": "The plan ranked locations by a severity-weighted score of police-reported crashes from 2017 through 2021, so its order differs from the counts on this site.",
+  "method": "The plan ranks 21 intersections and 7 street segments by police-reported crashes from 2017 through 2021, counting deaths and serious injuries most. It uses older years than this site, so its order differs from the counts above.",
   "intersections": [
     { "rank": 1,  "tier": 1, "name": "El Camino Real & 22nd Ave", "streets": ["El Camino Real", "22nd Ave"], "project": 1 },
     { "rank": 2,  "tier": 1, "name": "Humboldt St & Poplar Ave", "streets": ["Humboldt St", "Poplar Ave"], "project": 3,

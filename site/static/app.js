@@ -123,9 +123,17 @@ function setupIntersection(data, page) {
     const sentence = C.patternSentence(pat);
     $("#cx-pattern").textContent = sentence;
     renderPatterns(pat);
-    const ctx = C.planContext(data.plans, int, s.miles);
-    renderPlan(ctx);
-    current = { text, near, sentence, plan: C.planSentence(data.plans, ctx, s) };
+    // the plan section is supplementary: a problem there must not stop the rest of the page
+    let planLine = "";
+    try {
+      const ctx = C.planContext(data.plans, int, s.miles);
+      renderPlan(ctx);
+      planLine = C.planSentence(data.plans, ctx, s);
+    } catch (err) {
+      console.error(err);
+      $("#cx-plan").hidden = true;
+    }
+    current = { text, near, sentence, plan: planLine };
     renderList(near);
     updateCouncil();
     map.update(near, s.miles);
@@ -153,74 +161,123 @@ function setupIntersection(data, page) {
   }
 
   const listHtml = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  // "a bike boulevard (a calmer street ...)" -> "Bike boulevard"; the definition is shown once, below the list
+  const bikeway = (f) => { const t = f.replace(/^an? /, "").replace(/ \(.*\)$/, ""); return t.charAt(0).toUpperCase() + t.slice(1); };
+  const BIKE_GLOSSARY = { "Bike boulevard": "A bike boulevard is a calmer street with signs and markings for bikes, often with traffic calming." };
+  const MAX_NEAR = 5;
+  const listLabel = (plan) => { const t = plan.list_label || "The plan"; return t.charAt(0).toLowerCase() + t.slice(1); };
+
   function proposalsHtml(plan, e) {
-    // ranked plans keep proposals in a shared projects table; generated ones carry them inline
+    // ranked plans keep proposals in a shared projects table; the others carry them inline
     const inline = e.sooner || e.other;
-    const pr = inline ? { sooner: e.sooner || [], later: e.later || [], other: e.other || [] } : data.plans.projects[plan.id]?.[String(e.project)];
-    if (!pr) return "";
+    const src = inline ? e : data.plans.projects[plan.id]?.[String(e.project)];
+    if (!src) return "";
+    const pr = { ...src, sooner: src.sooner || [], later: src.later || [], other: src.other || [] };
     const covers = inline ? [] : [...data.plans.points, ...data.plans.segments]
       .filter((x) => x.plan === plan.id && x.project === e.project).map((x) => x.name);
     const source = inline
-      ? `<a href="${esc(plan.pdf)}#page=${e.page}">${esc(plan.list_label || "The plan")}, page ${e.page}</a>, has the full wording.`
-      : `Summarized from the plan, page ${pr.page}.`;
+      ? `<a href="${esc(plan.pdf)}#page=${e.page}">${esc(listLabel(plan))}, page ${e.page}</a>`
+      : `<a href="${esc(plan.pdf)}#page=${pr.page}">the plan, page ${pr.page}</a>`;
     return `<div class="cx-proposals">`
-      + (covers.length > 1 ? `<p class="cx-meta">The plan proposes one project covering ${esc(covers.join("; "))}.</p>` : "")
-      + (pr.sooner.length ? `<h4>${inline ? "Short term" : "Proposed sooner (lower cost)"}</h4>${listHtml(pr.sooner)}` : "")
-      + (pr.later.length ? `<h4>${inline ? "Medium term" : "Proposed later (higher cost)"}</h4>${listHtml(pr.later)}` : "")
-      + (pr.other?.length ? `<h4>Recommended</h4>${listHtml(pr.other)}` : "")
+      + (covers.length > 1 ? `<p class="cx-meta">One project in the plan covers ${esc(covers.join("; "))}.</p>` : "")
+      + (pr.sooner.length ? `<h4>${inline ? "Short term" : "Sooner, lower cost"}</h4>${listHtml(pr.sooner)}` : "")
+      + (pr.later.length ? `<h4>${inline ? "Medium term" : "Later, higher cost"}</h4>${listHtml(pr.later)}` : "")
+      + (pr.other.length ? `<h4>Recommended</h4>${listHtml(pr.other)}` : "")
       + (pr.underway ? `<p class="cx-meta">Already underway when the plan was adopted: ${esc(pr.underway)}.</p>` : "")
-      + `<p class="cx-meta">${source}</p></div>`;
+      + `<p class="cx-meta">${inline ? "Full wording" : "Summarized from"}: ${source}.</p></div>`;
   }
+
+  // one row of a "nearby" list: the place, then a short description under it
+  function nearRow(plan, x, nInts, nSegs) {
+    const name = x.id ? `<a href="${BASE}${esc(x.id)}/">${esc(x.name)}</a>` : esc(x.name);
+    let meta = "";
+    if (x.rank) meta = x.line ? `#${x.rank} of ${nSegs} priority street segments` : `#${x.rank} of ${nInts} priority intersections`;
+    else if (x.facility) meta = `${bikeway(x.facility)} · ${x.priority} priority`;
+    else {
+      const all = [...(x.sooner || []), ...(x.later || []), ...(x.other || [])];
+      meta = all.length ? `${all[0]}${all.length > 1 ? ` and ${all.length - 1} more ${all.length === 2 ? "change" : "changes"}` : ""}` : "";
+    }
+    return `<li>${name}${meta ? `<span class="cx-near-meta">${esc(meta)}</span>` : ""}</li>`;
+  }
+  function nearList(plan, items, nInts, nSegs) {
+    const rows = items.map((x) => nearRow(plan, x, nInts, nSegs));
+    const head = rows.slice(0, MAX_NEAR).join("");
+    const rest = rows.slice(MAX_NEAR);
+    return `<ul class="cx-near">${head}</ul>`
+      + (rest.length ? `<details class="cx-more-near"><summary>Show ${rest.length} more</summary><ul class="cx-near">${rest.join("")}</ul></details>` : "");
+  }
+
+  // returns {summary, body, open} for one plan, or null when the plan says nothing about this area
   function planBlock(plan, c) {
     const year = plan.adopted.slice(0, 4);
-    const link = `<a href="${esc(plan.url)}">${esc(plan.title)}</a>`;
     const nInts = data.plans.points.filter((p) => p.plan === plan.id).length;
     const nSegs = data.plans.segments.filter((x) => x.plan === plan.id).length;
+    const within = radiusWordsFor(current.miles);
+    const bikes = c.onSegments.filter((x) => x.facility);
+    const segs = c.onSegments.filter((x) => !x.facility);
+    const near = [...c.nearPoints, ...c.nearSegments];
+    const here = c.own.length + c.onSegments.length;
+    if (plan.unranked && !here && !near.length) return null;
+
+    // the one-line summary shown even when collapsed
+    let summary;
+    if (c.own.length) summary = plan.unranked ? "Changes recommended at this intersection" : `#${c.own[0].rank} of ${nInts} priority intersections`;
+    else if (bikes.length) summary = `${bikeway(bikes[0].facility)} proposed on ${bikes[0].name.split(" from ")[0]}${bikes.length > 1 ? ` and ${bikes.length - 1} more` : ""}`;
+    else if (segs.length) summary = plan.unranked ? `Changes recommended on ${segs[0].name.split(/ (from|between) /)[0]}` : `On a priority street: #${segs[0].rank} of ${nSegs}`;
+    else if (near.length) {
+      const n = near.length, pl = (one, many) => (n === 1 ? one : many);
+      summary = plan.id === "bmp" ? `${n} proposed ${pl("bikeway", "bikeways")} within ${within}`
+        : plan.unranked ? `Changes recommended at ${n} ${pl("place", "places")} within ${within}`
+        : `Not this intersection · ${n} priority ${pl("location", "locations")} within ${within}`;
+    }
+    else summary = "Not on the plan's lists";
+
     const parts = [];
     for (const p of c.own) {
       parts.push(plan.unranked
-        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes at this intersection</strong>${p.project ? ` (project ${esc(p.project)})` : ""}.</p>`
-        : `<p class="cx-plan-lead"><strong>This intersection is #${p.rank} of ${nInts} priority intersections</strong> in the city's ${year} ${link} (Tier ${p.tier}).</p>`);
+        ? `<p class="cx-plan-lead">The plan recommends changes at this intersection${p.project ? ` (project ${esc(p.project)})` : ""}.</p>`
+        : `<p class="cx-plan-lead">This intersection is <strong>#${p.rank} of the ${nInts} intersections</strong> the plan ranks as priorities${p.rank <= 10 ? ", in its top 10" : ""}.</p>`);
       if (p.status) parts.push(`<p>Status: ${esc(p.status.text)}, according to the <a href="${esc(p.status.source)}">city's Transportation Safety page</a> (checked ${C.longDate(p.status.checked)}).</p>`);
       if (p.project_url) parts.push(`<p><a href="${esc(p.project_url)}">The city's project page</a> has the current status.</p>`);
       parts.push(proposalsHtml(plan, p));
     }
-    for (const g of c.onSegments.filter((x) => x.facility)) {
-      parts.push(`<p class="cx-plan-lead"><strong>The city's ${year} ${link} proposes ${esc(g.facility)} on ${esc(g.name)}</strong> (${esc(g.priority)} priority, project ${esc(g.project)}).</p>`
-        + `<p class="cx-meta">See <a href="${esc(plan.pdf)}#page=${g.page}">the plan's project list, page ${g.page}</a>.</p>`);
+    if (bikes.length === 1) {
+      const g = bikes[0];
+      parts.push(`<p class="cx-plan-lead">The plan proposes <strong>${esc(g.facility.replace(/ \(.*\)$/, ""))}</strong> on ${esc(g.name)}.</p>`
+        + `<p class="cx-meta">${esc(g.priority)} priority (project ${esc(g.project)}). Source: <a href="${esc(plan.pdf)}#page=${g.page}">${esc(listLabel(plan))}, page ${g.page}</a>.</p>`);
+    } else if (bikes.length) {
+      parts.push(`<p class="cx-plan-lead">The plan proposes bikeways on ${bikes.length} stretches through this intersection:</p>`
+        + `<ul class="cx-near cx-here">${bikes.map((g) => `<li>${esc(g.name)}<span class="cx-near-meta"><strong>${esc(bikeway(g.facility))}</strong> · ${esc(g.priority)} priority · <a href="${esc(plan.pdf)}#page=${g.page}">source, page ${g.page}</a></span></li>`).join("")}</ul>`);
     }
-    for (const g of c.onSegments.filter((x) => !x.facility)) {
+    for (const g of segs) {
       parts.push(plan.unranked
-        ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes on ${esc(g.name)}</strong>${g.project ? ` (project ${esc(g.project)})` : ""}.</p>`
-        : `<p class="cx-plan-lead"><strong>${esc(g.name)}</strong> is #${g.rank} of ${nSegs} priority street segments in the city's ${year} ${link}.</p>`);
+        ? `<p class="cx-plan-lead">The plan recommends changes on ${esc(g.name)}${g.project ? ` (project ${esc(g.project)})` : ""}.</p>`
+        : `<p class="cx-plan-lead">${esc(g.name)} is <strong>#${g.rank} of the ${nSegs} street segments</strong> the plan ranks as priorities.</p>`);
       parts.push(proposalsHtml(plan, g));
     }
-    const within = esc(radiusWordsFor(current.miles));
-    const named = (p) => (p.id ? `<a href="${BASE}${esc(p.id)}/">${esc(p.name)}</a>` : esc(p.name));
-    if (plan.unranked) {
-      const near = [...c.nearPoints, ...c.nearSegments];
-      if (near.length) {
-        const shown = near.slice(0, 5).map((x) => named(x) + (x.facility ? ` (${esc(x.facility.replace(/ \(.*\)$/, ""))}, ${esc(x.priority)} priority)` : "")).join("; ");
-        const verb = plan.id === "bmp" ? "proposes bikeways on" : "recommends changes at";
-        const what = plan.id === "bmp" ? (near.length === 1 ? "street segment" : "street segments") : (near.length === 1 ? "location" : "locations");
-        parts.push(`<p>${c.own.length || c.onSegments.length ? `It also ${verb}` : `The city's ${year} ${link} ${verb}`} ${near.length} ${c.own.length || c.onSegments.length ? "other " : ""}${what} within ${within}: ${shown}${near.length > 5 ? `, and ${near.length - 5} more` : ""}.</p>`);
-      }
-      if (!parts.length) return "";
-    } else {
-      const near = [...c.nearPoints.map((p) => `<li>#${p.rank} ${named(p)} <span class="cx-count">intersection, Tier ${p.tier}</span></li>`),
-        ...c.nearSegments.map((g) => `<li>#${g.rank} ${esc(g.name)} <span class="cx-count">street segment</span></li>`)];
-      if (near.length) parts.push(`<p>${c.own.length || c.onSegments.length ? `Also within ${within}, the plan lists:` : `Within ${within}, the city's ${year} ${link} lists:`}</p><ul class="cx-rank">${near.join("")}</ul>`);
-      if (!parts.length) parts.push(`<p>The city's ${year} ${link} doesn't list this intersection among its ${nInts} priority intersections or ${nSegs} priority street segments, and none are within ${within}.</p>`);
+    if (near.length) {
+      const label = plan.id === "bmp" ? "Proposed bikeways" : plan.unranked ? "Recommended changes" : "Priority locations";
+      parts.push(`<h4 class="cx-near-head">${here ? `Also within ${esc(within)}` : `${label} within ${esc(within)}`}</h4>${nearList(plan, near, nInts, nSegs)}`);
+    } else if (!here) {
+      parts.push(`<p>The plan's ${nInts} priority intersections and ${nSegs} priority street segments don't include this intersection, and none are within ${esc(within)}.</p>`);
     }
-    parts.push(`<p class="cx-meta">${esc(plan.method)}</p>`);
-    return `<div class="cx-plan-block">${parts.join("")}</div>`;
+    const kinds = new Set([...bikes, ...near].filter((x) => x.facility).map((x) => bikeway(x.facility)));
+    for (const k of kinds) if (BIKE_GLOSSARY[k]) parts.push(`<p class="cx-meta">${BIKE_GLOSSARY[k]}</p>`);
+    parts.push(`<p class="cx-meta">${esc(plan.method)} From the city's <a href="${esc(plan.url)}">${esc(plan.title)}</a>, adopted ${C.monthYear(plan.adopted)}.</p>`);
+    return { summary, open: here > 0, label: plan.label || plan.title, year, body: parts.join("") };
   }
+
   function renderPlan(ctx) {
     const box = $("#cx-plan");
     if (!ctx) { box.hidden = true; return; }
     const blocks = [...data.plans.plans.values()].map((plan) => planBlock(plan, ctx[plan.id])).filter(Boolean);
-    blocks.push(`<p class="cx-ask">Ask the city about this corner: <a href="${CFG.service}">report a concern</a> or <a href="${CFG.calming}">request a traffic calming study</a>.</p>`);
-    box.innerHTML = `<h2>What the city has planned</h2>${blocks.join("")}`;
+    box.innerHTML = `<h2>What the city has planned</h2>
+      <p class="cx-meta">City plans that name this intersection or places within ${esc(radiusWordsFor(current.miles))}. Tap a plan to see what it says.</p>
+      ${blocks.map((b) => `<details class="cx-plan-block"${b.open ? " open" : ""}>
+        <summary><span class="cx-plan-name">${esc(b.label)} <span class="cx-plan-year">${b.year}</span></span>
+        <span class="cx-plan-sum">${esc(b.summary)}</span></summary>
+        <div class="cx-plan-body">${b.body}</div></details>`).join("")}
+      <p class="cx-ask">Ask the city about this corner: <a href="${CFG.service}">report a concern</a> or <a href="${CFG.calming}">request a traffic calming study</a>.</p>`;
     box.hidden = false;
   }
 

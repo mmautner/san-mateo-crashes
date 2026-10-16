@@ -1,6 +1,7 @@
 {
  "_readme": "Hand-entered from the City of San Mateo Citywide Pedestrian Master Plan (adopted April 2012), Appendix G, Recommendations Summary (PDF pages cited per entry): Table G-1 sidewalk installation (page 4), Table G-4 curb extensions (page 10), Table G-6 advance stop bars (page 14), Table G-7 pedestrian beacons (page 16), Table G-8 midblock crossing improvements (page 17). The plan's high-visibility crosswalk list (Appendix F) and studies are not included. Rerun: pipeline/.venv/bin/python pipeline/plans.py",
  "id": "ped",
+ "label": "Pedestrian plan",
  "title": "Pedestrian Master Plan",
  "short": "the city's 2012 pedestrian plan",
  "adopted": "2012-04-01",

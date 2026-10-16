@@ -152,7 +152,7 @@ def main():
     for path in sorted(PLANS.glob("*.json"), key=lambda p: (order.get(p.stem, 99), p.stem)):
         plan = json.loads(path.read_text())
         pid = plan["id"]
-        out["plans"].append({k: plan[k] for k in ("id", "title", "short", "adopted", "url", "pdf", "method", "unranked", "list_label") if k in plan})
+        out["plans"].append({k: plan[k] for k in ("id", "label", "title", "short", "adopted", "url", "pdf", "method", "unranked", "list_label") if k in plan})
         # hand-entered plans must match exactly; generated ones (unranked lists) report misses and go on
         strict = plan.get("strict", not plan.get("unranked"))
         out["projects"][pid] = plan.get("projects", {})
