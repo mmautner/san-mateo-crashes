@@ -134,6 +134,7 @@ function setupIntersection(data, page) {
       $("#cx-plan").hidden = true;
     }
     current = { text, near, sentence, plan: planLine };
+    showAll = false;
     renderList(near);
     updateCouncil();
     map.update(near, s.miles);
@@ -283,38 +284,61 @@ function setupIntersection(data, page) {
     box.hidden = false;
   }
 
-  // list
-  const LIST_STEP = 50;
-  let shown = LIST_STEP;
-  function renderList(near) {
-    const rows = near.slice(0, shown).map((c, i) => {
-      const mode = c.killed ? "killed" : C.MODES[c.mode].key;
-      const dot = c.killed ? `<span class="cx-key cx-key-killed" aria-hidden="true"></span>`
-        : c.mode === "v" ? `<span class="cx-key cx-key-ring" aria-hidden="true"></span>`
-        : `<span class="cx-key" style="background:var(--${mode})" aria-hidden="true"></span>`;
-      const who = c.killed ? C.deathLine(c.people) : C.describePeople(c.people);
-      const whoText = cap(who);
-      const where = c.killed ? "" : `${esc(c.place || "Location from police report")}${c.approx ? " (approximate)" : ""}`;
-      const head = `<span class="cx-date">${C.longDate(c.date)}</span>`
-        + `<span class="cx-where">${where}</span><span class="cx-who">${dot}${esc(whoText)}</span>`;
-      if (c.killed) return `<li class="cx-death"><div class="cx-row">${head}</div></li>`;
-      return `<li id="cx-c-${i}"><details><summary class="cx-row">${head}</summary>${detailsHtml(c)}</details></li>`;
-    });
-    $("#cx-list").innerHTML = rows.join("");
-    $("#cx-list-count").textContent = near.length
-      ? `${near.length} ${near.length === 1 ? "crash" : "crashes"} in which someone was hurt, newest first.`
-      : "No crashes in which someone was hurt.";
-    const more = $("#cx-more");
-    more.hidden = near.length <= shown;
-    more.textContent = `Show ${Math.min(LIST_STEP, near.length - shown)} more`;
+  // list: the 10 newest, a "show all" button, and filters by who was hurt
+  const FIRST = 10;
+  const FILTERS = [
+    { key: "all", phrase: "someone was hurt", label: "All", test: () => true },
+    { key: "w", phrase: "someone walking was hurt", label: "Walking", test: (c) => c.people.some((p) => p[0] === "w") },
+    { key: "b", phrase: "someone on a bike was hurt", label: "On a bike", test: (c) => c.people.some((p) => p[0] === "b") },
+    { key: "s", phrase: "someone on a scooter was hurt", label: "On a scooter", test: (c) => c.people.some((p) => p[0] === "s") },
+    { key: "v", phrase: "someone in a vehicle was hurt", label: "In a vehicle", test: (c) => c.people.some((p) => p[0] === "v") },
+    { key: "bad", phrase: "someone was seriously hurt or killed", label: "Seriously hurt or killed", test: (c) => c.people.some((p) => p[1] !== "o") },
+  ];
+  let filter = "all", showAll = false;
+
+  function crashRow(c, i) {
+    const mode = c.killed ? "killed" : C.MODES[c.mode].key;
+    const dot = c.killed ? `<span class="cx-key cx-key-killed" aria-hidden="true"></span>`
+      : c.mode === "v" ? `<span class="cx-key cx-key-ring" aria-hidden="true"></span>`
+      : `<span class="cx-key" style="background:var(--${mode})" aria-hidden="true"></span>`;
+    const who = cap(c.killed ? C.deathLine(c.people) : C.describePeople(c.people));
+    const where = c.killed ? "" : `${esc(c.place || "Location from police report")}${c.approx ? " (approximate)" : ""}`;
+    const head = `<span class="cx-date">${C.longDate(c.date)}</span>`
+      + `<span class="cx-where">${where}</span><span class="cx-who">${dot}${esc(who)}</span>`;
+    if (c.killed) return `<li class="cx-death" id="cx-c-${i}"><div class="cx-row">${head}</div></li>`;
+    return `<li id="cx-c-${i}"><details><summary class="cx-row">${head}</summary>${detailsHtml(c)}</details></li>`;
   }
-  $("#cx-more").addEventListener("click", () => { shown += LIST_STEP; renderList(current.near); });
-  // "Full details" in a map popup opens that crash in the list
+
+  function renderList(near) {
+    const chips = FILTERS.map((f) => ({ ...f, n: near.filter(f.test).length })).filter((f) => f.key === "all" || f.n > 0);
+    if (!chips.some((f) => f.key === filter)) filter = "all";
+    $("#cx-filters").innerHTML = near.length > FIRST || filter !== "all"
+      ? chips.map((f) => `<button type="button" class="cx-chip" data-f="${f.key}" aria-pressed="${f.key === filter}">${esc(f.label)} <span>${f.n}</span></button>`).join("")
+      : "";
+    const test = FILTERS.find((f) => f.key === filter).test;
+    const rows = near.map((c, i) => [c, i]).filter(([c]) => test(c));
+    const visible = showAll ? rows : rows.slice(0, FIRST);
+    $("#cx-list").innerHTML = visible.map(([c, i]) => crashRow(c, i)).join("");
+    $("#cx-list-count").textContent = !near.length ? "No crashes in which someone was hurt."
+      : `${rows.length} ${rows.length === 1 ? "crash" : "crashes"} in which ${FILTERS.find((f) => f.key === filter).phrase}, newest first.`;
+    const more = $("#cx-more");
+    more.hidden = rows.length <= visible.length;
+    more.textContent = `Show all ${rows.length}`;
+  }
+  $("#cx-more").addEventListener("click", () => { showAll = true; renderList(current.near); });
+  $("#cx-filters").addEventListener("click", (e) => {
+    const b = e.target.closest(".cx-chip");
+    if (!b) return;
+    filter = b.dataset.f;
+    showAll = false;
+    renderList(current.near);
+  });
+  // "Full details" in a map popup opens that crash in the list, clearing any filter
   $("#cx-map").addEventListener("click", (e) => {
     const b = e.target.closest(".cx-goto");
     if (!b) return;
     const i = +b.dataset.i;
-    if (i >= shown) { shown = Math.ceil((i + 1) / LIST_STEP) * LIST_STEP; renderList(current.near); }
+    if (!$(`#cx-c-${i}`)) { filter = "all"; showAll = true; renderList(current.near); }
     const li = $(`#cx-c-${i}`);
     li.querySelector("details").open = true;
     li.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });

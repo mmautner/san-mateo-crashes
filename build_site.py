@@ -166,6 +166,7 @@ def intersection_page(id_, p, meta):
   <div class="cx-council" id="cx-council" hidden></div>
 
   <h2>Crashes</h2>
+  <div class="cx-filters" id="cx-filters" role="group" aria-label="Show crashes where someone was"></div>
   <p class="cx-meta" id="cx-list-count"></p>
   <p class="cx-meta">Tap a crash for what the police report says. Tap a dot on the map for the same.</p>
   <ul class="cx-list" id="cx-list"></ul>
