@@ -118,11 +118,12 @@ function setupIntersection(data, page) {
     $("#cx-headline").textContent = text;
     $("#cx-at").textContent = C.atIntersectionSentence(C.atIntersection(data, int, s), t.n);
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
-    $("#cx-gap").textContent = C.gapNote(meta, s.y0, s.y1);
+
     const noInjury = C.noInjurySentence(C.noInjuryCount(data, int.px, int.py, s.miles, s.y0, s.y1), s);
     const pat = C.patterns(near);
     const sentence = C.patternSentence(pat);
     renderPatterns(pat, sentence, noInjury);
+    renderYears(s);
     // the plan section is supplementary: a problem there must not stop the rest of the page
     let planLine = "";
     try {
@@ -138,6 +139,27 @@ function setupIntersection(data, page) {
     renderList(near);
     updateCouncil();
     map.update(near, s.miles);
+  }
+
+  // people hurt each year within the chosen distance; the chosen years are solid,
+  // years with missing police reports are striped and footnoted
+  const gaps = C.gapYears(meta);
+  function renderYears(s) {
+    const rows = C.byYear(data, int.px, int.py, s.miles);
+    const max = Math.max(1, ...rows.map((r) => r.n));
+    const anyGap = rows.some((r) => gaps.has(r.year));
+    const bars = rows.map((r) => {
+      const cls = ["cx-bar", r.year >= s.y0 && r.year <= s.y1 ? "is-in" : "", gaps.has(r.year) ? "is-gap" : ""].join(" ");
+      const h = r.n ? Math.max(3, (r.n / max) * 100) : 0;
+      return `<div class="${cls}" title="${r.year}: ${r.n} ${r.n === 1 ? "person" : "people"} hurt${gaps.has(r.year) ? " (police reports missing for part of the year)" : ""}">`
+        + `<span class="cx-bar-plot"><span class="cx-bar-fill" style="height:${h}%"><span class="cx-bar-n">${r.n}</span></span></span>`
+        + `<span class="cx-bar-y">’${String(r.year).slice(2)}${gaps.has(r.year) ? "*" : ""}</span></div>`;
+    }).join("");
+    const g = meta.gaps[0];
+    $("#cx-years").innerHTML = `<h3 class="cx-years-title">People hurt each year within ${esc(radiusWordsFor(s.miles))}</h3>`
+      + `<div class="cx-bars" aria-hidden="true">${bars}</div>`
+      + `<ul class="cx-sr">${rows.map((r) => `<li>${r.year}: ${r.n}</li>`).join("")}</ul>`
+      + (anyGap ? `<p class="cx-meta">* ${esc(g.agency)} reports from ${C.monthYear(g.from)} through ${C.monthYear(g.to)} are missing from the state's data, so these years count too few.</p>` : "");
   }
 
   function renderPatterns(p, sentence, noInjury) {

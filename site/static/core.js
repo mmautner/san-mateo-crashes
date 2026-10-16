@@ -395,3 +395,17 @@ export function planSentence(plans, ctx, s) {
   }
   return out.join(" ");
 }
+
+// People hurt near a point in each year, for the by-year chart.
+export function byYear(data, px, py, miles) {
+  const [y0, y1] = data.meta.years;
+  const out = [];
+  for (let y = y0; y <= y1; y++) out.push({ year: y, n: tally(nearby(data, px, py, miles, y, y)).n });
+  return out;
+}
+
+export function gapYears(meta) {
+  const ys = new Set();
+  for (const g of meta.gaps) for (let y = +g.from.slice(0, 4); y <= +g.to.slice(0, 4); y++) ys.add(y);
+  return ys;
+}

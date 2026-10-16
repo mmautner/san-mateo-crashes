@@ -138,13 +138,14 @@ def intersection_page(id_, p, meta):
   <p class="cx-at" id="cx-at">{e(p['at'])}</p>
   <p class="cx-context" id="cx-context">{e(p['context'])}</p>
   <p class="cx-meta">{e(meta['dataThrough'])}. Police-reported crashes only.</p>
-  <p class="cx-gap" id="cx-gap"></p>
 
   <div class="cx-controls" role="group" aria-label="Settings">
     <label>Distance<select id="cx-radius"></select></label>
     <label>From<select id="cx-from"></select></label>
     <label>Through<select id="cx-to"></select></label>
   </div>
+
+  <figure class="cx-years" id="cx-years"></figure>
 
   <div class="cx-map" id="cx-map" role="img" aria-label="Map of the crashes listed below"></div>
   <ul class="cx-legend" aria-label="Map key">
