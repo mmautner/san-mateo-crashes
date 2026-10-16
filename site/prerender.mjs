@@ -20,6 +20,7 @@ for (const i of ids.length ? ids.map((id) => data.byId.get(id)) : data.ints) {
     label: i.label, district: i.district, lon: i.lon, lat: i.lat,
     headline: C.headline(i.label, t, s, data.meta.years[1]),
     context: C.context(t.n, dist, s),
+    at: C.atIntersectionSentence(C.atIntersection(data, i, s), t.n),
     n: t.n, walk: t.w, bike: t.b, scooter: t.s, vehicle: t.v, killed: t.killed,
     years: C.yearsPhrase(s.y0, s.y1, data.meta.years[1]),
   };

@@ -123,6 +123,20 @@ export function headline(label, t, s, lastYear) {
   return text;
 }
 
+// "At the intersection": within this distance of where the streets meet
+export const AT_INTERSECTION_M = 40;
+
+export function atIntersection(data, int, s) {
+  return tally(nearby(data, int.px, int.py, AT_INTERSECTION_M / M_PER_MILE, s.y0, s.y1)).n;
+}
+
+export function atIntersectionSentence(k, total) {
+  if (!total) return "";
+  if (!k) return "None of them were hurt at the intersection itself; those crashes were on nearby streets.";
+  if (k === total) return total === 1 ? "That crash was at the intersection itself." : "All of them were hurt at the intersection itself.";
+  return `${k} of them ${k === 1 ? "was" : "were"} hurt at the intersection itself.`;
+}
+
 export function context(count, sorted, s) {
   const below = sorted.filter((c) => c < count).length / sorted.length;
   if (below >= 0.5) {

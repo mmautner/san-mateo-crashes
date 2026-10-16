@@ -51,6 +51,8 @@ header nav a { font-size: 16px; color: var(--text-2); text-decoration: none; }
   letter-spacing: -.015em; color: var(--text); margin: 0 0 14px; }
 .cx h2 { font-family: var(--font-serif); font-weight: 600; font-size: 21px; color: var(--text); margin: 32px 0 10px; }
 .cx-headline { font-family: var(--font-serif); font-size: 22px; line-height: 1.35; color: var(--text); margin: 0 0 10px; }
+.cx-at { font-size: 17px; color: var(--text); font-weight: 600; margin: 0 0 8px; }
+.cx-at:empty { display: none; }
 .cx-context { font-size: 17px; color: var(--text); margin: 0 0 10px; }
 .cx-meta { font-size: 13px; color: var(--text-3); margin: 0 0 4px; }
 .cx-gap { font-size: 13px; color: var(--text-2); border-left: 3px solid var(--accent); padding: 2px 0 2px 10px; margin: 10px 0; }

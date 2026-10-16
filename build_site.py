@@ -135,6 +135,7 @@ def intersection_page(id_, p, meta):
   <span class="cx-eyebrow"><a href="{BASE}">San Mateo crash lookup</a></span>
   <h1>{e(p['label'])}</h1>
   <p class="cx-headline" id="cx-headline" aria-live="polite">{e(p['headline'])}</p>
+  <p class="cx-at" id="cx-at">{e(p['at'])}</p>
   <p class="cx-context" id="cx-context">{e(p['context'])}</p>
   <p class="cx-pattern" id="cx-pattern"></p>
   <p class="cx-noinjury" id="cx-noinjury"></p>
@@ -252,6 +253,9 @@ def methodology_page(meta):
   <p>Pages near the Downtown, Hayward Park and Hillsdale Caltrain stations and along El Camino Real also cite the city's <a href="https://www.cityofsanmateo.org/4566/TOD-Pedestrian-Access-Plan">Transit-Oriented Development Pedestrian Access Plan</a> (adopted November 21, 2022). Its project list doesn't rank locations. The site reads that list directly from the city's PDF and sorts each location's recommended changes into plain categories by keyword (for example, “LPI” becomes “a head start on the walk signal”), keeping the plan's short-term and medium-term split; each page links to the page of the plan's list with the full wording. Locations that aren't on a street, such as paths across the tracks or station parking lots, aren't placed on pages. The extraction is <code>pipeline/plans_tod.py</code>.</p>
   <p>Pages on or near a proposed bikeway also cite the city's <a href="https://www.cityofsanmateo.org/3944/Bicycle-Master-Plan-2020">Bicycle Master Plan</a> (adopted April 6, 2020), from its Appendix E project list: the street, its limits, the proposed kind of bikeway, and the plan's priority group (High, Medium-High, Medium-Low or Low, from a score for safety, comfort, equity and expected use). The site reads that table directly from the city's PDF. Where a bikeway ends at the city line or a freeway, the end is placed where the street meets it on the map. Projects on paths, overcrossings or parks that aren't streets on the map aren't placed on pages. Some of these bikeways may have been built since 2020. The extraction is <code>pipeline/plans_bmp.py</code>.</p>
   <p>Pages also cite the city's 2012 <a href="https://www.cityofsanmateo.org/2218/Pedestrian-Master-Plan">Pedestrian Master Plan</a> where its Appendix G names the location: corners recommended for wider sidewalk corners (Table G-4), stop lines set back from the crosswalk (Table G-6) or a pedestrian hybrid beacon (Table G-7), streets recommended for new sidewalks (Table G-1), and mid-block crosswalk upgrades (Table G-8). These were entered by hand from the plan, with page citations, in <code>site/plans/ped.json</code>. The plan's list of high-visibility crosswalk locations (its Appendix F) isn't included. Since the plan is from 2012, some of these changes may have been made.</p>
+
+  <h2>At the intersection</h2>
+  <p>Each page also says how many of the people hurt nearby were hurt at the intersection itself: in crashes placed within 40 meters (about 130 feet) of where the two streets meet. The rest were on the streets around it.</p>
 
   <h2>Comparing intersections</h2>
   <p>An intersection is any place in city limits where two differently named streets meet ({c['intersections']:,} in all). The comparison line counts people hurt within the same distance and years around every one of them. If a location is below the middle, the site shows the typical (median) count instead of a percentage.</p>

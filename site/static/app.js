@@ -116,6 +116,7 @@ function setupIntersection(data, page) {
     current.miles = s.miles;
     const text = C.headline(int.label, t, s, meta.years[1]);
     $("#cx-headline").textContent = text;
+    $("#cx-at").textContent = C.atIntersectionSentence(C.atIntersection(data, int, s), t.n);
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
     $("#cx-gap").textContent = C.gapNote(meta, s.y0, s.y1);
     $("#cx-noinjury").textContent = C.noInjurySentence(C.noInjuryCount(data, int.px, int.py, s.miles, s.y0, s.y1), s);
