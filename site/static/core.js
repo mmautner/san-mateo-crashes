@@ -151,7 +151,7 @@ export function context(count, sorted, s) {
   const below = sorted.filter((c) => c < count).length / sorted.length;
   if (below >= 0.5) {
     const pct = Math.min(99, Math.floor(below * 100));
-    return `That's more than ${pct}% of San Mateo intersections over the same years.`;
+    return `More people were hurt near here than near ${pct}% of San Mateo intersections over the same years.`;
   }
   const med = Math.round(median(sorted));
   return `For comparison, the typical San Mateo intersection had ${med} ${med === 1 ? "person" : "people"} hurt within ${radiusWords(s.miles)} over the same years.`;

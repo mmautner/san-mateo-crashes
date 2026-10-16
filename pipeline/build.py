@@ -362,10 +362,10 @@ MOVEMENT = {
 CAUSE = {
     "22350": "Unsafe speed for conditions",
     "22107": "Unsafe turn or lane change",
-    "21950A": "Driver didn't yield to a person in a crosswalk",
-    "21950": "Driver didn't yield to a person in a crosswalk",
+    "21950A": "Driver didn't yield to someone in a crosswalk",
+    "21950": "Driver didn't yield to someone in a crosswalk",
     "21950B": "Person walking stepped into a vehicle's path",
-    "21950C": "Driver didn't slow for a person in a crosswalk",
+    "21950C": "Driver didn't slow for someone in a crosswalk",
     "21453A": "Ran a red light", "21453": "Ran a red light", "21453B": "Ran a red light",
     "21453C": "Turned against a red arrow", "21453D": "Person walking against a red light",
     "21802A": "Didn't yield after stopping at a stop sign", "21802": "Didn't yield after stopping at a stop sign",
