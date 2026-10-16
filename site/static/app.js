@@ -184,7 +184,11 @@ function setupIntersection(data, page) {
       if (p.project_url) parts.push(`<p><a href="${esc(p.project_url)}">The city's project page</a> has the current status.</p>`);
       parts.push(proposalsHtml(plan, p));
     }
-    for (const g of c.onSegments) {
+    for (const g of c.onSegments.filter((x) => x.facility)) {
+      parts.push(`<p class="cx-plan-lead"><strong>The city's ${year} ${link} proposes ${esc(g.facility)} on ${esc(g.name)}</strong> (${esc(g.priority)} priority, project ${esc(g.project)}).</p>`
+        + `<p class="cx-meta">See <a href="${esc(plan.pdf)}#page=${g.page}">the plan's project list, page ${g.page}</a>.</p>`);
+    }
+    for (const g of c.onSegments.filter((x) => !x.facility)) {
       parts.push(plan.unranked
         ? `<p class="cx-plan-lead"><strong>The city's ${year} ${link} recommends changes on ${esc(g.name)}</strong> (project ${esc(g.project)}).</p>`
         : `<p class="cx-plan-lead"><strong>${esc(g.name)}</strong> is #${g.rank} of ${nSegs} priority street segments in the city's ${year} ${link}.</p>`);
@@ -195,14 +199,16 @@ function setupIntersection(data, page) {
     if (plan.unranked) {
       const near = [...c.nearPoints, ...c.nearSegments];
       if (near.length) {
-        const shown = near.slice(0, 5).map(named).join("; ");
-        parts.push(`<p>${c.own.length || c.onSegments.length ? "It also recommends" : `The city's ${year} ${link} recommends`} changes at ${near.length} ${near.length === 1 ? "location" : "locations"} within ${within}: ${shown}${near.length > 5 ? `, and ${near.length - 5} more` : ""}.</p>`);
+        const shown = near.slice(0, 5).map((x) => named(x) + (x.facility ? ` (${esc(x.facility.replace(/ \(.*\)$/, ""))}, ${esc(x.priority)} priority)` : "")).join("; ");
+        const verb = plan.id === "bmp" ? "proposes bikeways on" : "recommends changes at";
+        const what = plan.id === "bmp" ? (near.length === 1 ? "street segment" : "street segments") : (near.length === 1 ? "location" : "locations");
+        parts.push(`<p>${c.own.length || c.onSegments.length ? `It also ${verb}` : `The city's ${year} ${link} ${verb}`} ${near.length} ${c.own.length || c.onSegments.length ? "other " : ""}${what} within ${within}: ${shown}${near.length > 5 ? `, and ${near.length - 5} more` : ""}.</p>`);
       }
       if (!parts.length) return "";
     } else {
       const near = [...c.nearPoints.map((p) => `<li>#${p.rank} ${named(p)} <span class="cx-count">intersection, Tier ${p.tier}</span></li>`),
         ...c.nearSegments.map((g) => `<li>#${g.rank} ${esc(g.name)} <span class="cx-count">street segment</span></li>`)];
-      if (near.length) parts.push(`<p>${c.own.length || c.onSegments.length ? "Also within" : "Within"} ${within}, the plan lists:</p><ul class="cx-rank">${near.join("")}</ul>`);
+      if (near.length) parts.push(`<p>${c.own.length || c.onSegments.length ? `Also within ${within}, the plan lists:` : `Within ${within}, the city's ${year} ${link} lists:`}</p><ul class="cx-rank">${near.join("")}</ul>`);
       if (!parts.length) parts.push(`<p>The city's ${year} ${link} doesn't list this intersection among its ${nInts} priority intersections or ${nSegs} priority street segments, and none are within ${within}.</p>`);
     }
     parts.push(`<p class="cx-meta">${esc(plan.method)}</p>`);

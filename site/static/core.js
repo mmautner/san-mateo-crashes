@@ -355,7 +355,9 @@ export function planSentence(plans, ctx, s) {
     const c = ctx[plan.id], year = plan.adopted.slice(0, 4);
     const nInts = plans.points.filter((p) => p.plan === plan.id).length;
     if (plan.unranked) {
-      if (c.own.length) out.push(`The city's ${year} ${plan.title} recommends changes at this intersection.`);
+      const bike = c.onSegments.find((x) => x.facility);
+      if (bike) out.push(`The city's ${year} ${plan.title} proposes ${bike.facility.replace(/ \(.*\)$/, "")} on ${bike.name} (${bike.priority} priority).`);
+      else if (c.own.length) out.push(`The city's ${year} ${plan.title} recommends changes at this intersection.`);
       else if (c.onSegments.length) out.push(`The city's ${year} ${plan.title} recommends changes on ${c.onSegments[0].name}.`);
       continue;
     }

@@ -9,14 +9,16 @@ location can't be matched to exactly one place.
 """
 import json
 import math
+import re
 import sys
 
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 
 import build as B
 
 PLANS = B.HERE.parent / "site" / "plans"
 OUT = B.HERE.parent / "site" / "data" / "plans.json"
+PLAN_ORDER = ["lrsp", "tod", "bmp", "ped"]  # safety plan first; then by how specific each plan is
 SAME_PLACE_M = 120    # nodes for one named corner (divided roads, offset T's)
 SEGMENT_WIDTH_M = 120  # how far street nodes may sit from the straight from->to line
 
@@ -81,12 +83,47 @@ def street_nodes(key):
     return [B.project(*nodes[n]) for n in ids if n in nodes]
 
 
-def segment_line(idx, seg, where):
+OPEN_END = re.compile(r"city limit|us-101|sr-92|i-280", re.I)
+_CITY_EDGE = B.city_polygon().exterior
+_FREEWAYS = B.freeway_lines()
+
+
+def open_end(street, end, other, where, away_from=()):
+    """Where a street reaches the city line (farthest such point from the other end) or a
+    freeway (nearest such point to the other end). away_from: points of the plan's other
+    segments on this street; the open end must lie beyond the known end, away from them."""
+    nodes = street_nodes(B.street_key(street))
+    if away_from:
+        nodes = [p for p in nodes if all(math.dist(p, q) > math.dist(other, q) for q in away_from)]
+    if re.search(r"city limit", end, re.I):
+        near = [p for p in nodes if _CITY_EDGE.distance(Point(p)) < 150]
+        pick = max
+    else:
+        near = [p for p in nodes if _FREEWAYS.distance(Point(p)) < 80]
+        pick = min
+    if not near:
+        sys.exit(f"{where}: {street} doesn't reach {end} on the map")
+    return pick(near, key=lambda p: math.dist(p, other))
+
+
+def segment_line(idx, seg, where, siblings=()):
     # an end that matches several places (5th Ave & El Camino Real also exists in Belmont)
     # is resolved to the one nearest the segment's other end
-    e1 = locate_corner(idx, seg["street"], seg["from"], where=where, many=True)
-    e2 = locate_corner(idx, seg["street"], seg["to"], where=where, many=True)
-    p1, p2 = min(((a, b) for a in e1 for b in e2), key=lambda ab: math.dist(*ab))
+    ends = [(seg["from"], None), (seg["to"], None)]
+    known = [None, None]
+    for k, (name, _) in enumerate(ends):
+        if not OPEN_END.search(name):
+            known[k] = locate_corner(idx, seg["street"], name, where=where, many=True)
+    if known[0] is None and known[1] is None:
+        sys.exit(f"{where}: neither end is a street")
+    for k in (0, 1):  # an end at the city line or a freeway is placed on the street itself
+        if known[k] is None:
+            other = known[1 - k]
+            away = [p for sib in siblings for p in sib]
+            known[k] = [open_end(seg["street"], seg["from"] if k == 0 else seg["to"], o, where, away) for o in other]
+    p1, p2 = min(((a, b) for a in known[0] for b in known[1]), key=lambda ab: math.dist(*ab))
+    if math.dist(p1, p2) < 20:
+        sys.exit(f"{where}: both ends resolve to the same place")
     if math.dist(p1, p2) > 3 * B.MILE:
         sys.exit(f"{where}: ends are {math.dist(p1, p2):.0f} m apart")
     dx, dy = p2[0] - p1[0], p2[1] - p1[1]
@@ -100,7 +137,8 @@ def segment_line(idx, seg, where):
             if off < SEGMENT_WIDTH_M:
                 pts.append((t, x, y))
     pts = [(0, *p1)] + sorted(pts) + [(1, *p2)]
-    return [[round(c, 6) for c in B.unproject(x, y)] for _, x, y in pts]
+    line = LineString([(x, y) for _, x, y in pts]).simplify(8)  # only used for distances; 8 m is plenty
+    return [[round(c, 5) for c in B.unproject(x, y)] for x, y in line.coords]
 
 
 def main():
@@ -110,7 +148,8 @@ def main():
     site_pts = [(i[0], B.project(i[2] / 1e5, i[3] / 1e5), {B.street_key(n) for n in i[1].split(" & ")}) for i in site_ints]
 
     out = {"plans": [], "intersections": [], "segments": [], "projects": {}}
-    for path in sorted(PLANS.glob("*.json")):
+    order = {pid: k for k, pid in enumerate(PLAN_ORDER)}
+    for path in sorted(PLANS.glob("*.json"), key=lambda p: (order.get(p.stem, 99), p.stem)):
         plan = json.loads(path.read_text())
         pid = plan["id"]
         out["plans"].append({k: plan[k] for k in ("id", "title", "short", "adopted", "url", "pdf", "method", "unranked") if k in plan})
@@ -136,10 +175,19 @@ def main():
                 "plan": pid, **{k: v for k, v in loc.items() if k not in ("streets", "pick", "max_gap_m") and not k.startswith("_")},
                 "id": site_id if d < SAME_PLACE_M else None, "lon": round(lon, 6), "lat": round(lat, 6)})
             print(f"  {where} -> {site_id if d < SAME_PLACE_M else '(no page)'} ({d:.0f} m)")
+        # far points of closed segments on each street, so open ends ("to City Limit") point the other way
+        closed = {}
+        for seg in plan.get("segments", []):
+            if not OPEN_END.search(seg["from"]) and not OPEN_END.search(seg["to"]):
+                try:
+                    ends = [locate_corner(idx, seg["street"], e, many=True) for e in (seg["from"], seg["to"])]
+                except SystemExit:
+                    continue
+                closed.setdefault(B.street_key(seg["street"]), []).append([p for e in ends for p in e])
         for seg in plan.get("segments", []):
             where = f"{path.name} segment #{seg.get('rank', seg.get('project'))} {seg['name']}"
             try:
-                line = segment_line(idx, seg, where)
+                line = segment_line(idx, seg, where, closed.get(B.street_key(seg["street"]), []))
             except SystemExit as e:
                 if strict:
                     raise

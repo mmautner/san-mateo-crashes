@@ -28,6 +28,7 @@ pipeline/.venv/bin/python pipeline/fetch.py --refresh        # all years, ~30 mi
 pipeline/.venv/bin/python pipeline/fetch.py --geo --refresh  # boundaries, districts, streets
 pipeline/.venv/bin/python pipeline/export.py
 pipeline/.venv/bin/python pipeline/plans_tod.py              # TOD Pedestrian Access Plan PDF -> site/plans/tod.json
+pipeline/.venv/bin/python pipeline/plans_bmp.py              # Bicycle Master Plan Appendix E -> site/plans/bmp.json
 pipeline/.venv/bin/python pipeline/plans.py                  # city plan locations -> site/data/plans.json
 pipeline/.venv/bin/python pipeline/report.py > pipeline/REPORT.md
 ```
