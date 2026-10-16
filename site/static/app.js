@@ -119,11 +119,10 @@ function setupIntersection(data, page) {
     $("#cx-at").textContent = C.atIntersectionSentence(C.atIntersection(data, int, s), t.n);
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
     $("#cx-gap").textContent = C.gapNote(meta, s.y0, s.y1);
-    $("#cx-noinjury").textContent = C.noInjurySentence(C.noInjuryCount(data, int.px, int.py, s.miles, s.y0, s.y1), s);
+    const noInjury = C.noInjurySentence(C.noInjuryCount(data, int.px, int.py, s.miles, s.y0, s.y1), s);
     const pat = C.patterns(near);
     const sentence = C.patternSentence(pat);
-    $("#cx-pattern").textContent = sentence;
-    renderPatterns(pat);
+    renderPatterns(pat, sentence, noInjury);
     // the plan section is supplementary: a problem there must not stop the rest of the page
     let planLine = "";
     try {
@@ -140,10 +139,11 @@ function setupIntersection(data, page) {
     map.update(near, s.miles);
   }
 
-  function renderPatterns(p) {
+  function renderPatterns(p, sentence, noInjury) {
     const box = $("#cx-patterns");
+    const tail = noInjury ? `<p class="cx-noinjury">${esc(noInjury)}</p>` : "";
     if (p.n < C.MIN_PATTERN_CRASHES) {
-      box.innerHTML = `<h2>What the police reports say</h2><p class="cx-meta">Too few crashes here to show a pattern. Tap any crash below for its details.</p>`;
+      box.innerHTML = `<h2>What the police reports say</h2><p class="cx-meta">Too few crashes here to show a pattern. Tap any crash below for its details.</p>${tail}`;
       return;
     }
     const li = (rows) => rows.map(([v, k]) => `<li>${esc(v)} <span class="cx-count">${k}</span></li>`).join("");
@@ -151,6 +151,7 @@ function setupIntersection(data, page) {
     if (p.walking) facts.push(`<li>Someone walking was hit: <strong>${p.walking}</strong> crashes; in ${p.crosswalk} of them the person was in a crosswalk</li>`);
     if (p.hitrun) facts.push(`<li>Hit and run: <strong>${p.hitrun}</strong> crashes</li>`);
     box.innerHTML = `<h2>What the police reports say</h2>
+      ${sentence ? `<p class="cx-pattern">${esc(sentence)}</p>` : ""}
       <p class="cx-meta">From the ${p.n} crashes in which someone was hurt and no one died.</p>
       <div class="cx-pat-grid">
         <div><h3>Cause the officer recorded</h3><ol class="cx-rank">${li(p.causes)}</ol></div>
@@ -158,7 +159,7 @@ function setupIntersection(data, page) {
         <div><h3>Type of crash</h3><ol class="cx-rank">${li(p.types)}</ol></div>
       </div>
       <ul class="cx-facts">${facts.join("")}</ul>
-      <p class="cx-meta">Causes and fault are the officer's judgment at the scene, not a court finding.</p>`;
+      <p class="cx-meta">Causes and fault are the officer's judgment at the scene, not a court finding.</p>${tail}`;
   }
 
   const listHtml = (xs) => `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;

@@ -137,8 +137,6 @@ def intersection_page(id_, p, meta):
   <p class="cx-headline" id="cx-headline" aria-live="polite">{e(p['headline'])}</p>
   <p class="cx-at" id="cx-at">{e(p['at'])}</p>
   <p class="cx-context" id="cx-context">{e(p['context'])}</p>
-  <p class="cx-pattern" id="cx-pattern"></p>
-  <p class="cx-noinjury" id="cx-noinjury"></p>
   <p class="cx-meta">{e(meta['dataThrough'])}. Police-reported crashes only.</p>
   <p class="cx-gap" id="cx-gap"></p>
 
@@ -151,8 +149,6 @@ def intersection_page(id_, p, meta):
     <button type="button" class="cx-btn" id="cx-share">Copy link</button>
   </div>
 
-  <section class="cx-patterns" id="cx-patterns" aria-live="polite"></section>
-
   <div class="cx-map" id="cx-map" role="img" aria-label="Map of the crashes listed below"></div>
   <ul class="cx-legend" aria-label="Map key">
     <li><span class="cx-key" style="background:var(--walk)"></span>Walking</li>
@@ -162,6 +158,8 @@ def intersection_page(id_, p, meta):
     <li><span class="cx-key cx-key-killed"></span>Killed (month and year only)</li>
   </ul>
   <p class="cx-meta" style="margin-top:6px">Each dot is one crash, colored by the most exposed person hurt.</p>
+
+  <section class="cx-patterns" id="cx-patterns" aria-live="polite"></section>
 
   <section class="cx-plan" id="cx-plan" hidden></section>
 
