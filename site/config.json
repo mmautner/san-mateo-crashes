@@ -10,5 +10,10 @@
   "cloudfront_distribution_id": "EXXGWO0M0CEXA",
   "nhtsa_url": "https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813403",
   "city_service_request": "https://www.cityofsanmateo.org/4940",
-  "city_traffic_calming": "https://cityofsanmateo.org/forms.aspx?fid=111"
+  "city_traffic_calming": "https://cityofsanmateo.org/forms.aspx?fid=111",
+  "examples": [
+    "e-3rd-ave-and-s-ellsworth-ave",
+    "monte-diablo-ave-and-n-san-mateo-dr",
+    "alameda-de-las-pulgas-and-aragon-blvd"
+  ]
 }

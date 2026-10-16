@@ -89,6 +89,7 @@ def main():
         return ix[value]
     crashes, stats, downloaded = [], collections.Counter(), set()
     no_injury = []
+    citywide = collections.Counter()
     for y in years:
         yd = B.load_year(y)
         downloaded.add(yd["meta"]["downloaded"])
@@ -125,6 +126,8 @@ def main():
             r = kept[cid]
             x, yy, how = r["_loc"]
             stats[how] += 1
+            if city.contains(Point(x, yy)):  # citywide totals count city limits only, not the buffer
+                citywide[y] += len(ppl)
             lon, lat = B.unproject(x, yy)
             m, d, yr = r["Crash Date Time"].split()[0].split("/")
             killed = any(p["severity"] == "killed" for p in ppl)
@@ -174,10 +177,12 @@ def main():
             "moved_to_street_description": stats["moved"],
             "intersections": None,
             "no_injury_crashes": None,
+            "citywide_people_by_year": None,
         },
     }
     meta["counts"]["intersections"] = len(ints_out)
     meta["counts"]["no_injury_crashes"] = len(no_injury)
+    meta["counts"]["citywide_people_by_year"] = {str(y): citywide[y] for y in years}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "crashes.json").write_text(json.dumps({"meta": meta, "places": places, "text": text, "crashes": crashes, "no_injury": no_injury}, separators=(",", ":")))
     (OUT / "intersections.json").write_text(json.dumps(ints_out, separators=(",", ":")))

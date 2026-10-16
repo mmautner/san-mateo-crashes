@@ -189,14 +189,25 @@ def intersection_page(id_, p, meta):
 """ + FOOT
 
 
-def index_page(meta):
+def index_page(meta, pre):
     desc = "Look up how many people were hurt in crashes near any San Mateo intersection, from police reports."
+    y0, y1 = meta["default_years"]
+    by_year = meta["counts"]["citywide_people_by_year"]
+    total = sum(by_year[str(y)] for y in range(y0, y1 + 1))
+    weeks = (y1 - y0 + 1) * 52.18
+    examples = [(i, pre[i]) for i in CFG.get("examples", []) if i in pre]
+    cards = "".join(
+        f'<li><a href="{BASE}{e(i)}/"><span class="cx-ex-name">{e(p["label"])}</span>'
+        f'<span class="cx-ex-n"><strong>{p["n"]}</strong> {"person" if p["n"] == 1 else "people"} hurt within a quarter mile</span></a></li>'
+        for i, p in examples)
     return head("Crashes near you in San Mateo", desc, BASE, og_image=f"{BASE}og/index.png") + f"""
 <article class="cx">
   <span class="cx-eyebrow">San Mateo crash lookup</span>
   <h1>How many people were hurt in crashes near you?</h1>
-  <p class="cx-context">Type a street in San Mateo and pick the nearest intersection. You'll see how many people were hurt in crashes nearby, who they were, and where it happened.</p>
+  <p class="cx-headline">Since {y0}, police reported <strong>{total:,} people</strong> hurt in crashes on San Mateo's streets, about {round(total / weeks)} a week. That doesn't count freeways.</p>
+  <p class="cx-context">Type a street and pick the nearest intersection to see how many were hurt near it, who they were, and what the city plans there.</p>
   {search_box("Your street or the nearest intersection")}
+  {f'<h2 class="cx-ex-head">Or start with one of these</h2><ul class="cx-examples">{cards}</ul>' if cards else ""}
   <p class="cx-meta">{e(meta['dataThrough'])}. What you type stays on your device; nothing is sent anywhere.</p>
   {small_print()}
 </article>
@@ -230,6 +241,8 @@ def methodology_page(meta):
     <li><strong>Freeways are left out:</strong> crashes on US-101, SR-92 and I-280 and their on- and off-ramps. That removes {c['freeway_crashes_removed']:,} crash reports and {c['freeway_people_removed']:,} people hurt ({c['freeway_killed_removed']} killed) from {y0}–{y1}. El Camino Real and other surface streets, including state routes, are kept.</li>
     <li>{y0}–{y1}: {c['crashes']:,} crashes in which {c['people']:,} people were hurt, {c['killed']} of them killed.</li>
   </ul>
+
+  <p>The citywide number on the front page counts only crashes inside San Mateo city limits (not the half-mile band), away from freeways.</p>
 
   <h2>Who counts as hurt</h2>
   <p>A person counts when the officer recorded an injury. Witnesses and passengers who were not hurt are not counted.</p>
@@ -298,7 +311,7 @@ def main():
     shutil.copytree(SITE / "static", OUT / "static")
     shutil.copytree(SITE / "data", OUT / "data")
     shutil.copy(SITE / "council.json", OUT / "council.json")
-    write(OUT / "index.html", index_page(meta))
+    write(OUT / "index.html", index_page(meta, pre))
     write(OUT / "methodology" / "index.html", methodology_page(meta))
     for id_, p in pre.items():
         write(OUT / id_ / "index.html", intersection_page(id_, p, meta))
