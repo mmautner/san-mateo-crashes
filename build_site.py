@@ -123,6 +123,7 @@ def small_print(issue_title=None, page_url=None):
     return f"""<div class="cx-note">
   <p>These are crashes reported to police only. A <a href="{CFG['berkeley_url']}">UC Berkeley review</a> found that police reports captured 44% to 75% of pedestrian injuries seen at hospitals and 7% to 46% of bicycle injuries, so the real numbers are higher.</p>
   <p>Data: California Highway Patrol, <a href="{CFG['ccrs_url']}">California Crash Reporting System</a>. Crashes on US-101, SR-92 and I-280 and their ramps are not counted. <a href="{BASE}methodology/">How this was counted</a>.</p>
+  <p>Made by <a href="/about/">Max Mautner</a> from public police data. <a href="{CFG['repo_url']}">The code is public</a>, so anyone can check how the numbers are counted.</p>
   <p><a href="{e(issue)}">Report an error</a>. {contact_line}</p>
 </div>"""
 
