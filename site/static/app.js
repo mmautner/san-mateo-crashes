@@ -112,6 +112,7 @@ function setupIntersection(data, page) {
     $("#cx-headline").textContent = text;
     $("#cx-context").textContent = C.context(t.n, distCache.get(key), s);
     $("#cx-gap").textContent = C.gapNote(meta, s.y0, s.y1);
+    $("#cx-noinjury").textContent = C.noInjurySentence(C.noInjuryCount(data, int.px, int.py, s.miles, s.y0, s.y1), s);
     const pat = C.patterns(near);
     const sentence = C.patternSentence(pat);
     $("#cx-pattern").textContent = sentence;

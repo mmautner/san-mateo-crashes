@@ -55,7 +55,15 @@ export function prepare(crashData, intersections) {
     if (!grid.has(k)) grid.set(k, []);
     grid.get(k).push(c);
   }
-  return { meta: crashData.meta, crashes, ints, grid, byId: new Map(ints.map((i) => [i.id, i])) };
+  // reported crashes where no one was hurt: position and year only
+  const noInjury = new Map();
+  for (const [x, y, yy] of crashData.no_injury || []) {
+    const [px, py] = toXY(x / 1e5, y / 1e5);
+    const k = `${Math.floor(px / 400)},${Math.floor(py / 400)}`;
+    if (!noInjury.has(k)) noInjury.set(k, []);
+    noInjury.get(k).push([px, py, 2000 + yy]);
+  }
+  return { meta: crashData.meta, crashes, ints, grid, noInjury, byId: new Map(ints.map((i) => [i.id, i])) };
 }
 
 export function nearby(data, px, py, miles, y0, y1) {
@@ -274,4 +282,23 @@ export function patternSentence(p) {
   if (tied.length === 1) return `The cause police recorded most often here: ${tied[0]} (${k} of ${p.n} crashes).`;
   const list = tied.length === 2 ? tied.join(" and ") : `${tied.slice(0, -1).join(", ")}, and ${tied.at(-1)}`;
   return `The causes police recorded most often here: ${list} (${k} crashes each, of ${p.n}).`;
+}
+
+// ------------------------------------------------------------------ crashes where no one was hurt
+
+export function noInjuryCount(data, px, py, miles, y0, y1) {
+  const r = miles * M_PER_MILE, r2 = r * r, n = Math.ceil(r / 400);
+  const gx = Math.floor(px / 400), gy = Math.floor(py / 400);
+  let count = 0;
+  for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
+    for (const [x, y, yr] of data.noInjury.get(`${gx + i},${gy + j}`) || []) {
+      if (yr >= y0 && yr <= y1 && (x - px) ** 2 + (y - py) ** 2 <= r2) count++;
+    }
+  }
+  return count;
+}
+
+export function noInjurySentence(k, s) {
+  if (!k) return "";
+  return `Police also took reports on ${k} ${k === 1 ? "crash" : "crashes"} within ${radiusWords(s.miles)} where no one was hurt. Nationally, about 60% of crashes like these are never reported to police.`;
 }

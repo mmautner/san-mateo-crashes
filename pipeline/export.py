@@ -16,6 +16,7 @@ crashes.json
     details 0 for crashes where someone was killed (only month, year and mode are published);
             otherwise [hour or -1, light, type, cause, who, ped, hit_and_run], where light..ped
             are indexes into text[light|type|cause|who|ped] (index 0 = not recorded)
+  no_injury: [x, y, year - 2000] for each reported crash in the same area where no one was hurt
 intersections.json
   [id, label, lon×1e5, lat×1e5, council district] for each intersection in city limits
 """
@@ -87,6 +88,7 @@ def main():
             text[kind].append(value)
         return ix[value]
     crashes, stats, downloaded = [], collections.Counter(), set()
+    no_injury = []
     for y in years:
         yd = B.load_year(y)
         downloaded.add(yd["meta"]["downloaded"])
@@ -115,6 +117,10 @@ def main():
         by_crash = collections.defaultdict(list)
         for p in people:
             by_crash[p["crash"]].append(p)
+        for cid, r in kept.items():
+            if cid not in by_crash:  # reported, but no one hurt
+                lon, lat = B.unproject(*r["_loc"][:2])
+                no_injury.append([round(lon * 1e5), round(lat * 1e5), y - 2000])
         for cid, ppl in by_crash.items():
             r = kept[cid]
             x, yy, how = r["_loc"]
@@ -167,11 +173,13 @@ def main():
             "placed_from_street_names": stats["street_names"],
             "moved_to_street_description": stats["moved"],
             "intersections": None,
+            "no_injury_crashes": None,
         },
     }
     meta["counts"]["intersections"] = len(ints_out)
+    meta["counts"]["no_injury_crashes"] = len(no_injury)
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "crashes.json").write_text(json.dumps({"meta": meta, "places": places, "text": text, "crashes": crashes}, separators=(",", ":")))
+    (OUT / "crashes.json").write_text(json.dumps({"meta": meta, "places": places, "text": text, "crashes": crashes, "no_injury": no_injury}, separators=(",", ":")))
     (OUT / "intersections.json").write_text(json.dumps(ints_out, separators=(",", ":")))
     n_people = sum(len(c[5]) // 2 for c in crashes)
     print(f"{len(crashes)} crashes, {n_people} people hurt, {len(ints_out)} intersections, years {years[0]}-{years[-1]}", file=sys.stderr)

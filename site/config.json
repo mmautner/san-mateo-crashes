@@ -7,5 +7,6 @@
   "berkeley_url": "https://its.berkeley.edu/node/3085",
   "ccrs_url": "https://data.ca.gov/dataset/ccrs",
   "s3_bucket": "maxmautner.com",
-  "cloudfront_distribution_id": "EXXGWO0M0CEXA"
+  "cloudfront_distribution_id": "EXXGWO0M0CEXA",
+  "nhtsa_url": "https://crashstats.nhtsa.dot.gov/Api/Public/ViewPublication/813403"
 }

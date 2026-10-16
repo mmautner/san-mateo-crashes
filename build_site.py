@@ -137,6 +137,7 @@ def intersection_page(id_, p, meta):
   <p class="cx-headline" id="cx-headline" aria-live="polite">{e(p['headline'])}</p>
   <p class="cx-context" id="cx-context">{e(p['context'])}</p>
   <p class="cx-pattern" id="cx-pattern"></p>
+  <p class="cx-noinjury" id="cx-noinjury"></p>
   <p class="cx-meta">{e(meta['dataThrough'])}. Police-reported crashes only.</p>
   <p class="cx-gap" id="cx-gap"></p>
 
@@ -213,7 +214,7 @@ def methodology_page(meta):
   <h2>Which crashes are included</h2>
   <ul>
     <li>Crashes inside San Mateo city limits plus a half-mile band around them, so a circle near the city line also counts crashes just across it in Burlingame, Hillsborough, Belmont or Foster City.</li>
-    <li>Only crashes in which someone was hurt or killed.</li>
+    <li>The counts, map and list cover crashes in which someone was hurt or killed. Each page also says how many crashes police took reports on nearby where no one was hurt ({c['no_injury_crashes']:,} in {y0}–{y1}, away from freeways). Those have no further detail on the site. Nationally, about 60% of crashes where no one is hurt are never reported to police (<a href="{CFG['nhtsa_url']}">NHTSA, 2023</a>), so the real number of these crashes is higher.</li>
     <li><strong>Freeways are left out:</strong> crashes on US-101, SR-92 and I-280 and their on- and off-ramps. That removes {c['freeway_crashes_removed']:,} crash reports and {c['freeway_people_removed']:,} people hurt ({c['freeway_killed_removed']} killed) from {y0}–{y1}. El Camino Real and other surface streets, including state routes, are kept.</li>
     <li>{y0}–{y1}: {c['crashes']:,} crashes in which {c['people']:,} people were hurt, {c['killed']} of them killed.</li>
   </ul>
@@ -248,7 +249,7 @@ def methodology_page(meta):
   <p>An intersection is any place in city limits where two differently named streets meet ({c['intersections']:,} in all). The comparison line counts people hurt within the same distance and years around every one of them. If a location is below the middle, the site shows the typical (median) count instead of a percentage.</p>
 
   <h2>What this misses</h2>
-  <p>Only crashes reported to police are here. A <a href="{CFG['berkeley_url']}">UC Berkeley review</a> found that police reports captured 44% to 75% of pedestrian injuries seen at hospitals and 7% to 46% of bicycle injuries, so the real numbers are higher. That is why the site says “at least.”</p>
+  <p>Only crashes reported to police are here. A <a href="{CFG['berkeley_url']}">UC Berkeley review</a> found that police reports captured 44% to 75% of pedestrian injuries seen at hospitals and 7% to 46% of bicycle injuries, so the real numbers are higher. Nationally, NHTSA estimates that about 32% of crashes in which someone is hurt, and about 60% of crashes in which no one is hurt, are never reported to police (<a href="{CFG['nhtsa_url']}">The Economic and Societal Impact of Motor Vehicle Crashes, 2019, page 3</a>). That is why the site says “at least.”</p>
   {small_print("Possible error: methodology", CFG['site_url'] + BASE + 'methodology/')}
 </article>
 """ + FOOT

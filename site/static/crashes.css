@@ -116,6 +116,8 @@ header nav a { font-size: 16px; color: var(--text-2); text-decoration: none; }
 .cx-dl dd { color: var(--text); margin: 0; }
 .cx-pattern { font-size: 16px; color: var(--text); margin: 0 0 10px; }
 .cx-pattern:empty { display: none; }
+.cx-noinjury { font-size: 14px; color: var(--text-2); margin: 0 0 10px; }
+.cx-noinjury:empty { display: none; }
 .cx-patterns { margin: 8px 0 18px; }
 .cx-patterns h2 { margin-top: 18px; }
 .cx-patterns h3 { font: 600 12px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 0 0 6px; }
