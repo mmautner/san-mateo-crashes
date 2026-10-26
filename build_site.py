@@ -57,6 +57,13 @@ HEADER = """<header role="banner">
 <script>(function(){var t=document.getElementById('darkModeToggle'),r=document.documentElement;t.addEventListener('click',function(){var d=r.getAttribute('data-theme')!=='dark';r.setAttribute('data-theme',d?'dark':'light');try{localStorage.setItem('theme',d?'dark':'light')}catch(e){}});})();</script>"""
 
 
+# Same Google Analytics property as the blog (maxmautner/_includes/analytics.html).
+GA = CFG.get("google_analytics_key")
+ANALYTICS = f"""
+  <script async src="https://www.googletagmanager.com/gtag/js?id={GA}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}gtag('js',new Date());gtag('config','{GA}');</script>""" if GA else ""
+
+
 def head(title, description, path, og_image=None):
     url = f"{CFG['site_url']}{path}"
     og = ""
@@ -88,7 +95,7 @@ def head(title, description, path, og_image=None):
   <link rel="stylesheet" href="{BASE}static/crashes.css?v={VER}">
   <link rel="stylesheet" href="{CFG['site_css']}">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
-  <script type="module" src="{BASE}static/app.js?v={VER}"></script>
+  <script type="module" src="{BASE}static/app.js?v={VER}"></script>{ANALYTICS}
 </head>
 <body>
 <main role="main">

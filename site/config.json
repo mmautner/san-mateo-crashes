@@ -2,6 +2,7 @@
   "site_url": "https://maxmautner.com",
   "base": "/san-mateo-crashes/",
   "site_css": "/assets/css/site.css",
+  "google_analytics_key": "G-P740XBJCNP",
   "repo_url": "https://github.com/mmautner/san-mateo-crashes",
   "contact_email": "movesanmateo@gmail.com",
   "berkeley_url": "https://its.berkeley.edu/node/3085",
