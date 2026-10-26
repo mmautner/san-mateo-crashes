@@ -6,6 +6,7 @@ const radiusWordsFor = (miles) => (C.RADII.find((r) => r.miles === miles) || { w
 const $ = (s, el = document) => el.querySelector(s);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const track = (name, params) => { if (window.cxTrack) window.cxTrack(name, params); }; // analytics.js
 
 async function loadData() {
   const v = document.documentElement.dataset.version || "";
@@ -25,7 +26,8 @@ function setupSearch(data) {
   if (!box) return;
   const input = $("input", box), list = $(".cx-options", box), status = $(".cx-status", box);
   let items = [], active = -1;
-  const go = (i) => { location.href = `${BASE}${i.id}/`; };
+  // never sends what was typed, only the intersection picked
+  const go = (i, method) => { track("intersection_picked", { target_intersection: i.id, method }); location.href = `${BASE}${i.id}/`; };
   const render = () => {
     list.innerHTML = items.length
       ? items.map((i, k) => `<li role="option" id="cx-opt-${k}" aria-selected="${k === active}">${esc(i.label)}</li>`).join("")
@@ -41,12 +43,12 @@ function setupSearch(data) {
       if (!items.length) return;
       active = (active + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
       render();
-    } else if (e.key === "Enter" && active >= 0) { e.preventDefault(); go(items[active]); }
+    } else if (e.key === "Enter" && active >= 0) { e.preventDefault(); go(items[active], "search"); }
     else if (e.key === "Escape") { list.hidden = true; input.setAttribute("aria-expanded", "false"); }
   });
   list.addEventListener("mousedown", (e) => {
     const li = e.target.closest("li[id]");
-    if (li) { e.preventDefault(); go(items[+li.id.slice(7)]); }
+    if (li) { e.preventDefault(); go(items[+li.id.slice(7)], "search"); }
   });
   input.addEventListener("blur", () => setTimeout(() => { list.hidden = true; }, 150));
 
@@ -57,9 +59,13 @@ function setupSearch(data) {
       status.textContent = "Finding the nearest intersection…";
       navigator.geolocation.getCurrentPosition((pos) => {
         const { int, meters } = C.nearestIntersection(data, pos.coords.longitude, pos.coords.latitude);
-        if (meters > 1500) { status.textContent = "You don't seem to be in San Mateo. Type a street name instead."; return; }
-        go(int);
-      }, () => { status.textContent = "Couldn't get your location. Type a street name instead."; },
+        if (meters > 1500) {
+          track("location_failed", { reason: "outside_city" });
+          status.textContent = "You don't seem to be in San Mateo. Type a street name instead.";
+          return;
+        }
+        go(int, "location");
+      }, () => { track("location_failed", { reason: "unavailable" }); status.textContent = "Couldn't get your location. Type a street name instead."; },
       { enableHighAccuracy: false, timeout: 10000 });
     });
   }
@@ -102,6 +108,7 @@ function setupIntersection(data, page) {
     s = { miles: +rSel.value, y0: +y0Sel.value, y1: +y1Sel.value };
     if (s.y0 > s.y1) { if (document.activeElement === y0Sel) s.y1 = s.y0; else s.y0 = s.y1; syncControls(); }
     history.replaceState(null, "", `${location.pathname}${C.writeSettings(s, meta)}`);
+    track("settings_changed", { distance_miles: s.miles, from_year: s.y0, to_year: s.y1 });
     update();
   };
   [rSel, y0Sel, y1Sel].forEach((el) => el.addEventListener("change", onChange));
@@ -195,6 +202,9 @@ function setupIntersection(data, page) {
   const MAX_NEAR = 5;
   const listLabel = (plan) => { const t = plan.list_label || "The plan"; return t.charAt(0).toLowerCase() + t.slice(1); };
 
+  const pdfLink = (plan, page, text) =>
+    `<a href="${esc(plan.pdf)}#page=${page}" data-track="plan_pdf_opened" data-track-plan="${esc(plan.id)}" data-track-pdf-page="${page}">${text}</a>`;
+
   function proposalsHtml(plan, e) {
     // ranked plans keep proposals in a shared projects table; the others carry them inline
     const inline = e.sooner || e.other;
@@ -204,8 +214,8 @@ function setupIntersection(data, page) {
     const covers = inline ? [] : [...data.plans.points, ...data.plans.segments]
       .filter((x) => x.plan === plan.id && x.project === e.project).map((x) => x.name);
     const source = inline
-      ? `<a href="${esc(plan.pdf)}#page=${e.page}">${esc(listLabel(plan))}, page ${e.page}</a>`
-      : `<a href="${esc(plan.pdf)}#page=${pr.page}">the plan, page ${pr.page}</a>`;
+      ? pdfLink(plan, e.page, `${esc(listLabel(plan))}, page ${e.page}`)
+      : pdfLink(plan, pr.page, `the plan, page ${pr.page}`);
     return `<div class="cx-proposals">`
       + (covers.length > 1 ? `<p class="cx-meta">One project in the plan covers ${esc(covers.join("; "))}.</p>` : "")
       + (pr.sooner.length ? `<h4>${inline ? "Short term" : "Sooner, lower cost"}</h4>${listHtml(pr.sooner)}` : "")
@@ -272,10 +282,10 @@ function setupIntersection(data, page) {
     if (bikes.length === 1) {
       const g = bikes[0];
       parts.push(`<p class="cx-plan-lead">The plan proposes <strong>${esc(g.facility.replace(/ \(.*\)$/, ""))}</strong> on ${esc(g.name)}.</p>`
-        + `<p class="cx-meta">${esc(g.priority)} priority (project ${esc(g.project)}). Source: <a href="${esc(plan.pdf)}#page=${g.page}">${esc(listLabel(plan))}, page ${g.page}</a>.</p>`);
+        + `<p class="cx-meta">${esc(g.priority)} priority (project ${esc(g.project)}). Source: ${pdfLink(plan, g.page, `${esc(listLabel(plan))}, page ${g.page}`)}.</p>`);
     } else if (bikes.length) {
       parts.push(`<p class="cx-plan-lead">The plan proposes bikeways on ${bikes.length} stretches through this intersection:</p>`
-        + `<ul class="cx-near cx-here">${bikes.map((g) => `<li>${esc(g.name)}<span class="cx-near-meta"><strong>${esc(bikeway(g.facility))}</strong> · ${esc(g.priority)} priority · <a href="${esc(plan.pdf)}#page=${g.page}">source, page ${g.page}</a></span></li>`).join("")}</ul>`);
+        + `<ul class="cx-near cx-here">${bikes.map((g) => `<li>${esc(g.name)}<span class="cx-near-meta"><strong>${esc(bikeway(g.facility))}</strong> · ${esc(g.priority)} priority · ${pdfLink(plan, g.page, `source, page ${g.page}`)}</span></li>`).join("")}</ul>`);
     }
     for (const g of segs) {
       parts.push(plan.unranked
@@ -292,7 +302,7 @@ function setupIntersection(data, page) {
     const kinds = new Set([...bikes, ...near].filter((x) => x.facility).map((x) => bikeway(x.facility)));
     for (const k of kinds) if (BIKE_GLOSSARY[k]) parts.push(`<p class="cx-meta">${BIKE_GLOSSARY[k]}</p>`);
     parts.push(`<p class="cx-meta">${esc(plan.method)} From the city's <a href="${esc(plan.url)}">${esc(plan.title)}</a>, adopted ${C.monthYear(plan.adopted)}.</p>`);
-    return { summary, label: plan.label || plan.title, year, body: parts.join("") };
+    return { id: plan.id, summary, label: plan.label || plan.title, year, body: parts.join("") };
   }
 
   // the plans' changes for this spot, grouped by what they take
@@ -309,7 +319,7 @@ function setupIntersection(data, page) {
     const fold = items.quick.length && n > FOLD_OVER;
     return `<div class="cx-takes"><h3>Changes the plans recommend here</h3>`
       + TAKES.filter(([k]) => items[k].length).map(([k, head, note]) => fold && k !== "quick"
-        ? `<details class="cx-takes-more"><summary>${head} (${items[k].length})</summary>${note ? `<p class="cx-meta">${note}</p>` : ""}${list(k)}</details>`
+        ? `<details class="cx-takes-more" data-track="plan_changes_opened" data-track-kind="${k}"><summary>${head} (${items[k].length})</summary>${note ? `<p class="cx-meta">${note}</p>` : ""}${list(k)}</details>`
         : `<h4>${head}</h4>${note ? `<p class="cx-meta">${note}</p>` : ""}${list(k)}`).join("")
       + `<p class="cx-meta">The plans don't track what has been done since they were adopted, so some of these may already be in place.</p></div>`;
   }
@@ -330,7 +340,7 @@ function setupIntersection(data, page) {
       ${takesHtml(items)}
       <h3 class="cx-plans-head">What each plan says</h3>
       <p class="cx-meta">Including places within ${esc(radiusWordsFor(current.miles))}. Tap a plan to see what it says.</p>
-      ${blocks.map((b) => `<details class="cx-plan-block">
+      ${blocks.map((b) => `<details class="cx-plan-block" data-track="plan_opened" data-track-plan="${esc(b.id)}">
         <summary><span class="cx-plan-name">${esc(b.label)} <span class="cx-plan-year">${b.year}</span></span>
         <span class="cx-plan-sum">${esc(b.summary)}</span></summary>
         <div class="cx-plan-body">${b.body}</div></details>`).join("")}`;
@@ -359,14 +369,14 @@ function setupIntersection(data, page) {
     const head = `<span class="cx-date">${C.longDate(c.date)}</span>`
       + `<span class="cx-where">${where}</span><span class="cx-who">${dot}${esc(who)}</span>`;
     if (c.killed) return `<li class="cx-death" id="cx-c-${i}"><div class="cx-row">${head}</div></li>`;
-    return `<li id="cx-c-${i}"><details><summary class="cx-row">${head}</summary>${detailsHtml(c)}</details></li>`;
+    return `<li id="cx-c-${i}"><details data-track="crash_opened" data-track-mode="${mode}"><summary class="cx-row">${head}</summary>${detailsHtml(c)}</details></li>`;
   }
 
   function renderList(near) {
     const chips = FILTERS.map((f) => ({ ...f, n: near.filter(f.test).length })).filter((f) => f.key === "all" || f.n > 0);
     if (!chips.some((f) => f.key === filter)) filter = "all";
     $("#cx-filters").innerHTML = near.length > FIRST || filter !== "all"
-      ? chips.map((f) => `<button type="button" class="cx-chip" data-f="${f.key}" aria-pressed="${f.key === filter}">${esc(f.label)} <span>${f.n}</span></button>`).join("")
+      ? chips.map((f) => `<button type="button" class="cx-chip" data-f="${f.key}" data-track="list_filtered" data-track-filter="${f.key}" aria-pressed="${f.key === filter}">${esc(f.label)} <span>${f.n}</span></button>`).join("")
       : "";
     const test = FILTERS.find((f) => f.key === filter).test;
     const rows = near.map((c, i) => [c, i]).filter(([c]) => test(c));
@@ -404,14 +414,19 @@ function setupIntersection(data, page) {
     const url = location.href;
     const coarse = matchMedia("(pointer: coarse)").matches;
     if (navigator.share && coarse) {
-      try { await navigator.share({ title: `Crashes near ${int.label}`, text: current.text, url }); } catch { /* cancelled */ }
+      try {
+        await navigator.share({ title: `Crashes near ${int.label}`, text: current.text, url });
+        track("link_shared", { method: "share" });
+      } catch { /* cancelled */ }
       return;
     }
     try {
       await navigator.clipboard.writeText(url);
       shareBtn.textContent = "Link copied";
+      track("link_shared", { method: "copy" });
     } catch {
       prompt("Copy this link:", url);
+      track("link_shared", { method: "prompt" });
     }
     setTimeout(() => { shareBtn.textContent = "Copy link"; }, 2500);
   });
@@ -430,7 +445,7 @@ function setupIntersection(data, page) {
     const href = `mailto:${m.email}?subject=${encodeURIComponent(`Crashes near ${int.label}`)}&body=${encodeURIComponent(body)}`;
     box.innerHTML = `<h3>Email your council member</h3>`
       + `<p>${esc(int.label)} is in City Council District ${int.district}, represented by ${esc(m.title)} ${esc(m.name)}. The email starts with this page's numbers and a question; add a sentence of your own.</p>`
-      + `<a class="cx-btn cx-btn-primary" href="${esc(href)}">Email ${esc(formal)}</a>`;
+      + `<a class="cx-btn cx-btn-primary" href="${esc(href)}" data-track="council_email_clicked" data-track-district="${int.district}">Email ${esc(formal)}</a>`;
     box.hidden = false;
   }
 
@@ -470,7 +485,7 @@ function createMap(int, el) {
           label: c.killed ? `Killed · ${C.monthYear(c.date)} · ${killedMode.many}` : "",
           html: `<strong>${C.longDate(c.date)}</strong><br>${c.killed ? "" : esc(c.place || "") + "<br>"}${esc(c.killed
             ? C.deathLine(c.people) : cap(C.describePeople(c.people)))}${detailsHtml(c, true)}`
-            + (c.killed ? "" : `<button type="button" class="cx-goto" data-i="${i}">Full details</button>`),
+            + (c.killed ? "" : `<button type="button" class="cx-goto" data-i="${i}" data-track="map_full_details_clicked">Full details</button>`),
         },
       };
     });
@@ -538,7 +553,10 @@ function createMap(int, el) {
       });
       const popup = new maplibregl.Popup({ closeButton: false, offset: 10 });
       for (const layer of ["vehicle", "vulnerable", "killed"]) {
-        m.on("click", layer, (e) => popup.setLngLat(e.features[0].geometry.coordinates).setHTML(e.features[0].properties.html).addTo(m));
+        m.on("click", layer, (e) => {
+          popup.setLngLat(e.features[0].geometry.coordinates).setHTML(e.features[0].properties.html).addTo(m);
+          track("map_crash_clicked", { mode: e.features[0].properties.kind });
+        });
         m.on("mouseenter", layer, () => { m.getCanvas().style.cursor = "pointer"; });
         m.on("mouseleave", layer, () => { m.getCanvas().style.cursor = ""; });
       }
@@ -566,5 +584,6 @@ loadData().then((data) => {
 }).catch((e) => {
   const s = $(".cx-status") || $("#cx-context");
   if (s) s.textContent = "The crash data didn't load. Check your connection and reload the page.";
+  track("data_load_failed");
   console.error(e);
 });

@@ -95,6 +95,7 @@ def head(title, description, path, og_image=None):
   <link rel="stylesheet" href="{BASE}static/crashes.css?v={VER}">
   <link rel="stylesheet" href="{CFG['site_css']}">
   <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+  <script defer src="{BASE}static/analytics.js?v={VER}"></script>
   <script type="module" src="{BASE}static/app.js?v={VER}"></script>{ANALYTICS}
 </head>
 <body>
@@ -125,13 +126,13 @@ def small_print(issue_title=None, page_url=None):
         "body": f"Page: {page_url or CFG['site_url'] + BASE}\n\nWhat looks wrong:\n",
     })
     contact = CFG["contact_email"]
-    contact_line = (f'To ask for a crash to be removed, email <a href="mailto:{e(contact)}">{e(contact)}</a>.'
+    contact_line = (f'To ask for a crash to be removed, email <a href="mailto:{e(contact)}" data-track="removal_email_clicked">{e(contact)}</a>.'
                     if contact else '<strong>[contact address needed]</strong>')
     return f"""<div class="cx-note">
   <p>These are crashes reported to police only. A <a href="{CFG['berkeley_url']}">UC Berkeley review</a> found that police reports captured 44% to 75% of pedestrian injuries seen at hospitals and 7% to 46% of bicycle injuries, so the real numbers are higher.</p>
   <p>Data: California Highway Patrol, <a href="{CFG['ccrs_url']}">California Crash Reporting System</a>. Crashes on US-101, SR-92 and I-280 and their ramps are not counted. <a href="{BASE}methodology/">How this was counted</a>.</p>
   <p>Made by <a href="/about/">Max Mautner</a> from public police data. <a href="{CFG['repo_url']}">The code is public</a>, so anyone can check how the numbers are counted.</p>
-  <p><a href="{e(issue)}">Report an error</a>. {contact_line}</p>
+  <p><a href="{e(issue)}" data-track="error_report_clicked">Report an error</a>. {contact_line}</p>
 </div>"""
 
 
@@ -181,7 +182,7 @@ def intersection_page(id_, p, meta):
     <div class="cx-act-item" id="cx-council" hidden></div>
     <div class="cx-act-item">
       <h3>Ask the city to look at this corner</h3>
-      <p><a href="{e(CFG['city_service_request'])}">Report a concern</a> to the city, or <a href="{e(CFG['city_traffic_calming'])}">request a traffic calming study</a> for your street.</p>
+      <p><a href="{e(CFG['city_service_request'])}" data-track="city_concern_clicked">Report a concern</a> to the city, or <a href="{e(CFG['city_traffic_calming'])}" data-track="calming_request_clicked">request a traffic calming study</a> for your street.</p>
     </div>
   </section>
 
@@ -190,7 +191,7 @@ def intersection_page(id_, p, meta):
   <p class="cx-meta" id="cx-list-count"></p>
   <p class="cx-meta">Tap a crash for what the police report says. Tap a dot on the map for the same.</p>
   <ul class="cx-list" id="cx-list"></ul>
-  <button type="button" class="cx-btn cx-more" id="cx-more" hidden></button>
+  <button type="button" class="cx-btn cx-more" id="cx-more" data-track="show_all_clicked" hidden></button>
   <noscript><p class="cx-meta">Turn on JavaScript to see the map and the list of crashes.</p></noscript>
 
   {search_box("Look up another intersection")}
@@ -207,7 +208,7 @@ def index_page(meta, pre):
     weeks = (y1 - y0 + 1) * 52.18
     examples = [(i, pre[i]) for i in CFG.get("examples", []) if i in pre]
     cards = "".join(
-        f'<li><a href="{BASE}{e(i)}/"><span class="cx-ex-name">{e(p["label"])}</span>'
+        f'<li><a href="{BASE}{e(i)}/" data-track="example_clicked" data-track-target-intersection="{e(i)}"><span class="cx-ex-name">{e(p["label"])}</span>'
         f'<span class="cx-ex-n"><strong>{p["n"]}</strong> {"person" if p["n"] == 1 else "people"} hurt within a quarter mile since {y0}</span></a></li>'
         for i, p in examples)
     return head("Crashes near you in San Mateo", desc, BASE, og_image=f"{BASE}og/index.png") + f"""
